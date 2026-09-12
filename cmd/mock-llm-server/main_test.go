@@ -74,3 +74,11 @@ func TestChatCompletionRejectsInvalidRequest(t *testing.T) {
 		t.Fatalf("status = %d", response.Code)
 	}
 }
+
+func TestChatCompletionJSONDelayOverridesHeader(t *testing.T) {
+	handler := newHandler("backend-1", "")
+	response := request(t, handler, `{"model":"demo","messages":[{"role":"user","content":"hello"}],"simulate_delay_ms":0}`, map[string]string{"X-Simulate-Delay-MS": "nope"})
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d", response.Code)
+	}
+}

@@ -50,7 +50,7 @@ A solução tem três entregáveis:
 
 - **NFR-1 (Pegada de Recursos):** O servidor mock deve consumir no máximo 50 MB de RAM por réplica e 0,1 vCPU.
 - **NFR-2 (Compatibilidade Local):** O caminho suportado é Kind Kubernetes v1.30+; a imagem é construída localmente e carregada no cluster, sem registry.
-- **NFR-3 (Tempo de Execução):** A demonstração completa dos dois cenários no terminal deve ser concluída em menos de 3 minutos.
+- **NFR-3 (Tempo de Execução):** Com o cluster e as imagens já instalados, a execução dos dois cenários no terminal deve ser concluída em menos de 3 minutos.
 - **NFR-4 (Portabilidade):** O código deve ser 100% contido no repositório da palestra para fácil reprodução pela comunidade após o evento.
 
 ---

@@ -112,7 +112,7 @@ func newHandler(instance, apiKey string) http.Handler {
 
 func simulation(r *http.Request, request completionRequest) (int, string, error) {
 	delay, status := 0, ""
-	if header := r.Header.Get("X-Simulate-Delay-MS"); header != "" {
+	if header := r.Header.Get("X-Simulate-Delay-MS"); header != "" && request.DelayMS == nil {
 		value, err := strconv.Atoi(header)
 		if err != nil {
 			return 0, "", fmt.Errorf("X-Simulate-Delay-MS must be an integer")

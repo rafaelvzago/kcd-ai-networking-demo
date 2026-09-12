@@ -40,6 +40,17 @@ curl -i -X POST http://localhost:8080/v1/chat/completions \
 
 Espere `200`, `X-Cache-Status: MISS` e `X-Instance-Name: mock-llm-server`. Repita o comando. A segunda resposta deve ter `X-Cache-Status: HIT`.
 
+O JSON tem precedência sobre o header de delay:
+
+```bash
+curl -i -X POST http://localhost:8080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -H 'X-Simulate-Delay-MS: nope' \
+  -d '{"model":"demo","messages":[{"role":"user","content":"delay override"}],"simulate_delay_ms":0}'
+```
+
+Essa chamada deve retornar `200`.
+
 Valide a entrada inválida:
 
 ```bash
@@ -113,6 +124,19 @@ curl -i -X POST http://localhost:8080/v1/chat/completions \
 ```
 
 Espere `200`, `X-Instance-Name: backend-<n>` e `x-went-into-resp-headers: true`. A chamada passou pelo Gateway e pelo `InferencePool`.
+
+Envie prompts distintos para observar a distribuição entre os três backends:
+
+```bash
+for i in $(seq 1 10); do
+  curl -s -X POST http://localhost:8080/v1/chat/completions \
+    -H 'Content-Type: application/json' \
+    -d "{\"model\":\"demo\",\"messages\":[{\"role\":\"user\",\"content\":\"backend check $i\"}]}" \
+    | grep -o '"instance":"backend-[0-9]"'
+done
+```
+
+Os resultados devem incluir `backend-1`, `backend-2` e `backend-3`. Repetir um prompt já enviado demonstra a afinidade de cache.
 
 ## Egress e quota
 

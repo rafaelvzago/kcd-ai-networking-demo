@@ -12,7 +12,7 @@
 A palestra de 30 minutos no KCD Brasil 2026 precisa de uma demonstração dos dois temas de rede para IA apresentados:
 
 1. **Inferência (State-Aware Routing & InferencePool)**: Roteamento inteligente de requisições de inferência considerando contexto, estado do backend e simulação de *KV Cache HIT/MISS* utilizando a **Gateway API** (`InferencePool` / `llm-d`).
-2. **Egress Gateway & Governança de IA**: Interceptação de chamadas de workloads para modelos externos (ex.: OpenAI `/v1/chat/completions`), injeção segura de API Keys via `ServiceAccount` e aplicação de *token rate limit*.
+2. **Egress Gateway & Governança de IA**: Interceptação de chamadas de workloads para modelos externos (ex.: OpenAI `/v1/chat/completions`), injeção de API Keys de um `Secret` e aplicação de *token rate limit*.
 
 ### Restrições
 
@@ -53,7 +53,7 @@ Vamos usar um servidor de modelo simulado (*Mock Model Server*) em Go, empacotad
 
 - Roda em Kind local com menos de 500 MB de RAM e sem registry externo para a imagem do mock.
 - Produz respostas rápidas e previsíveis durante a palestra.
-- Exercita a camada de controle e de dados da rede: Gateway API, Istio, ServiceAccount e Egress.
+- Exercita a camada de controle e de dados da rede: Gateway API, Agentgateway, `InferencePool` e Egress.
 
 ---
 
