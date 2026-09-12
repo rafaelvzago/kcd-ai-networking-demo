@@ -17,9 +17,9 @@ A suíte reúne microsserviços e configurações Kubernetes para demonstrar com
 
 A solução tem três entregáveis:
 
-1. **`mock-llm-server`**: Aplicação Python (FastAPI) em container Docker que emula o endpoint OpenAI `/v1/chat/completions`.
-2. **Cenário 1: Inferência (`InferencePool` / Gateway API)**: Manifestos Kubernetes para subir 3 réplicas do servidor simulado e expô-las via Gateway API com extensão de inferência (`llm-d`).
-3. **Cenário 2: Egress AI Gateway**: Manifestos e scripts para demonstrar injeção de credenciais baseada em `ServiceAccount` e *token rate limit*.
+1. **`mock-llm-server`**: Aplicação Go em container Docker que emula o endpoint OpenAI `/v1/chat/completions`.
+2. **Cenário 1: Inferência (`InferencePool` / Gateway API)**: Kind, Gateway API/GAIE, `llm-d` Router em Gateway Mode e Agentgateway expõem 3 réplicas do servidor simulado.
+3. **Cenário 2: Egress AI Gateway**: Agentgateway injeta uma credencial de um `Secret` e aplica quota de tokens.
 
 ---
 
@@ -41,15 +41,15 @@ A solução tem três entregáveis:
 ### FR-3: Egress Gateway & Governança de API Keys
 
 - **FR-3.1**: O Pod cliente (`client-app`) deve enviar uma chamada para `/v1/chat/completions` **sem** incluir o cabeçalho `Authorization`.
-- **FR-3.2**: O Egress Gateway deve interceptar a chamada, verificar a `ServiceAccount` do Pod e injetar o cabeçalho `Authorization: Bearer <SECRET_KEY>`.
-- **FR-3.3**: O Egress Gateway deve monitorar a contagem de tokens informada na resposta e bloquear requisições subsequentes caso o limite estipulado por minuto seja excedido com HTTP `429 Too Many Requests`.
+- **FR-3.2**: O Egress Gateway deve interceptar a chamada e injetar o cabeçalho `Authorization: Bearer <SECRET_KEY>` a partir de um `Secret`. Mapeamento dinâmico de `ServiceAccount` para credencial não faz parte desta demonstração.
+- **FR-3.3**: O Egress Gateway deve debitar a quota pelos tokens informados na resposta e bloquear requisições subsequentes caso o limite por minuto seja excedido com HTTP `429 Too Many Requests`.
 
 ---
 
 ## 4. Requisitos não funcionais (NFR)
 
 - **NFR-1 (Pegada de Recursos):** O servidor mock deve consumir no máximo 50 MB de RAM por réplica e 0,1 vCPU.
-- **NFR-2 (Compatibilidade Local):** Todos os manifestos devem rodar sem modificação em clusters locais Kind ou Minikube Kubernetes v1.30+.
+- **NFR-2 (Compatibilidade Local):** O caminho suportado é Kind Kubernetes v1.30+; a imagem é construída localmente e carregada no cluster, sem registry.
 - **NFR-3 (Tempo de Execução):** A demonstração completa dos dois cenários no terminal deve ser concluída em menos de 3 minutos.
 - **NFR-4 (Portabilidade):** O código deve ser 100% contido no repositório da palestra para fácil reprodução pela comunidade após o evento.
 
@@ -59,7 +59,7 @@ A solução tem três entregáveis:
 
 | Passo | Comando / Ação | Resultado Esperado |
 | :--- | :--- | :--- |
-| **1. Inferência** | `curl -H "X-Simulate-Delay-MS: 100" http://gateway.local/v1/chat/completions` | Resposta do `backend-1` com `X-Cache-Status: HIT` |
-| **2. Load Balancing** | Loop de 5 requisições `curl` | Distribuição entre as 3 réplicas simuladas |
+| **1. Inferência** | `curl -X POST -H 'Content-Type: application/json' -d '{"model":"demo","messages":[{"role":"user","content":"cache me"}]}' http://gateway.local/v1/chat/completions` duas vezes | Segunda resposta com `X-Cache-Status: HIT` e afinidade de cache visível |
+| **2. Load Balancing** | Loop de 5 requisições com prompts distintos | Distribuição entre as 3 réplicas simuladas |
 | **3. Egress OK** | `kubectl exec client-pod -- curl http://egress-gateway/v1/chat/completions` | Chamada bem-sucedida (API Key injetada pelo Gateway) |
 | **4. Rate Limit** | Chamada com payload de alto volume de tokens | Retorno `429 Rate Limit Exceeded` pelo Egress |
