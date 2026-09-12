@@ -37,3 +37,18 @@ kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo port-forward
 ```
 
 Em outro terminal, envie o mesmo Chat Completion para `http://localhost:8080/v1/chat/completions`. O `HTTPRoute` criado pelo chart encaminha a chamada ao `InferencePool`.
+
+## Egress e quota
+
+O cenário de Egress cria um cliente sem chave, um upstream protegido por `Secret` e uma quota local de 20 tokens por minuto:
+
+```bash
+./scripts/install-egress.sh
+kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo exec deployment/client-app -- \
+  curl -i http://llm-d-inference-gateway.ai-networking-demo.svc.cluster.local/v1/chat/completions \
+  -H 'Host: egress.local' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"demo","messages":[{"role":"user","content":"token budget test"}]}'
+```
+
+O comando não envia `Authorization`; o Agentgateway lê `upstream-api-key` e injeta o Bearer token no upstream. A resposta deve identificar `external-mock`. Repita até a quota ser debitada e uma chamada posterior retornar `429`.
