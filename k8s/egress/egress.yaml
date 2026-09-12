@@ -89,6 +89,7 @@ spec:
   ai:
     provider:
       custom:
+        model: demo
         backendRef:
           name: external-mock-llm
           port: 8080
