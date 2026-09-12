@@ -10,6 +10,11 @@ request() {
     curl -sS -i -X POST "$gateway" -H 'Content-Type: application/json' "$@"
 }
 
+backend_request() {
+  kubectl --context "$context" --namespace "$namespace" exec deployment/client-app -- \
+    curl -sS -i -X POST http://backend-1.ai-networking-demo.svc.cluster.local:8080/v1/chat/completions -H 'Content-Type: application/json' "$@"
+}
+
 body() {
   printf '%s\n' "$1" | sed '1,/^\r$/d'
 }
@@ -20,11 +25,11 @@ for deployment in backend-1 backend-2 backend-3 external-mock-llm client-app dem
 done
 kubectl --context "$context" --namespace "$namespace" wait --for=condition=Programmed gateway/llm-d-inference-gateway --timeout=30s >/dev/null
 
-printf '%s\n' 'checking cache affinity and load distribution'
+printf '%s\n' 'checking mock cache and gateway load distribution'
 prompt="cache-check-$(date +%s%N)"
 payload=$(printf '{"model":"demo","messages":[{"role":"user","content":"%s"}]}' "$prompt")
-first=$(request --data "$payload")
-second=$(request --data "$payload")
+first=$(backend_request --data "$payload")
+second=$(backend_request --data "$payload")
 printf '%s\n' "$first" | grep -qi '^X-Cache-Status: MISS'
 printf '%s\n' "$second" | grep -qi '^X-Cache-Status: HIT'
 
@@ -59,4 +64,4 @@ if test "$first_status" != 200 || test "$second_status" != 429; then
   exit 1
 fi
 
-printf '%s\n' 'demo validation passed: cache affinity, three backends, model routing, egress auth, and quota'
+printf '%s\n' 'demo validation passed: mock cache, three backends, model routing, egress auth, and quota'

@@ -15,6 +15,19 @@ spec:
     - port: 8080
       targetPort: http
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-1
+  namespace: ai-networking-demo
+spec:
+  selector:
+    app: mock-llm
+    demo.kcd.io/backend: backend-1
+  ports:
+    - port: 8080
+      targetPort: http
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

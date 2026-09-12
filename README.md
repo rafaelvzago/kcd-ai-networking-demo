@@ -149,7 +149,7 @@ for i in $(seq 1 10); do
 done
 ```
 
-Os resultados devem incluir `backend-1`, `backend-2` e `backend-3`. Repetir um prompt já enviado demonstra a afinidade de cache.
+Os resultados devem incluir `backend-1`, `backend-2` e `backend-3`. O cache do mock é local a cada réplica; repetir um prompt pelo Gateway não garante `HIT`.
 
 ## Roteamento por modelo
 
