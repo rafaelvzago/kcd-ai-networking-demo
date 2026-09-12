@@ -6,6 +6,9 @@ Este repositório reúne a demo da palestra "A Evolução do Kubernetes Networki
 
 - [ADR-001](docs/adr/0001-mock-model-server-adr.md): decisão de arquitetura da demonstração prática.
 - [PRD-001](docs/prd/0001-mock-model-server-prd.md): requisitos e casos de teste.
+- [Arquitetura](docs/architecture/README.md): visão de implantação e fluxos de requisição.
+
+![Arquitetura da demonstração](docs/architecture/overview.svg)
 
 ## Pré-requisitos
 
@@ -14,6 +17,7 @@ Este repositório reúne a demo da palestra "A Evolução do Kubernetes Networki
 - Kind
 - `kubectl`
 - Helm
+- [D2](https://d2lang.com/) (para regenerar os diagramas)
 
 Comece com:
 
@@ -185,3 +189,7 @@ done
 ```
 
 Espere `chamada 1: HTTP 200` e `chamada 2: HTTP 429`. O cliente não envia `Authorization`; o Agentgateway lê `upstream-api-key` e injeta o token Bearer no upstream.
+
+## Manutenção da arquitetura
+
+Ao alterar a arquitetura, manifests Kubernetes, fluxos de rede ou integrações, atualize os fontes D2 em `docs/architecture/` e rode `make diagrams`. Os SVGs são gerados: não os edite manualmente.
