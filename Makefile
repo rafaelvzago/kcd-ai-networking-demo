@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help test run image bootstrap inference model-routing validate-model-routing egress demo status
+.PHONY: help test run image bootstrap inference model-routing validate-model-routing validate-demo egress demo status
 
 help:
 	@printf '%s\n' \
@@ -11,6 +11,7 @@ help:
 	  'make inference  # Gateway API, GAIE, Agentgateway e llm-d' \
 	  'make model-routing          # pools demo-fast e demo-quality' \
 	  'make validate-model-routing # valida o roteamento por modelo' \
+	  'make validate-demo          # valida toda a demonstracao no Kind' \
 	  'make egress     # Secret, client-app e quota de tokens' \
 	  'make demo       # bootstrap + inference + model-routing + egress' \
 	  'make status     # recursos da demo no Kind'
@@ -35,6 +36,9 @@ model-routing:
 
 validate-model-routing:
 	./scripts/validate-model-routing.sh
+
+validate-demo:
+	./scripts/validate-demo.sh
 
 egress:
 	./scripts/install-egress.sh

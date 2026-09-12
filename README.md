@@ -22,6 +22,19 @@ make help
 make test
 ```
 
+## Para desenvolver
+
+Depois de alterar o servidor mock, rode `make test`. Para conferir a demonstração inteira no Kind, use:
+
+```bash
+make demo
+make validate-demo
+```
+
+`make demo` cria o cluster quando necessário, monta a imagem local e instala os cenários de inferência, roteamento por modelo e egress. `make validate-demo` confere os workloads, cache, distribuição entre os backends, roteamento, credencial do upstream e quota. A parte da quota pode esperar até um minuto por uma janela nova.
+
+O GitHub executa esses testes em todo pull request. O merge na `main` só fica disponível quando o check `Validate demo / validate-demo` passar.
+
 ## Validar o mock em Go
 
 Em um terminal:
@@ -167,7 +180,7 @@ for i in 1 2; do
     http://llm-d-inference-gateway.ai-networking-demo.svc.cluster.local/v1/chat/completions \
     -H 'Host: egress.local' \
     -H 'Content-Type: application/json' \
-    -d '{"model":"demo","messages":[{"role":"user","content":"token budget test"}]}'
+    -d '{"model":"demo","messages":[{"role":"user","content":"one two three four five six seven eight nine"}]}'
 done
 ```
 
