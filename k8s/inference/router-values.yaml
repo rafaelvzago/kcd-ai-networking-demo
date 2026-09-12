@@ -19,7 +19,7 @@ router:
     targetPorts:
       - number: 8080
   inferencePool:
-    failureMode: FailClosed
+    failureMode: FailClose
 httpRoute:
   create: true
   inferenceGatewayName: llm-d-inference-gateway
