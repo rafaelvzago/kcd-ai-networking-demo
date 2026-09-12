@@ -31,6 +31,7 @@ spec:
       labels:
         app: mock-llm
         demo.kcd.io/backend: backend-1
+        demo.kcd.io/model: demo-fast
     spec:
       containers:
         - name: mock-llm
@@ -74,6 +75,7 @@ spec:
       labels:
         app: mock-llm
         demo.kcd.io/backend: backend-2
+        demo.kcd.io/model: demo-fast
     spec:
       containers:
         - name: mock-llm
@@ -109,6 +111,7 @@ spec:
       labels:
         app: mock-llm
         demo.kcd.io/backend: backend-3
+        demo.kcd.io/model: demo-quality
     spec:
       containers:
         - name: mock-llm

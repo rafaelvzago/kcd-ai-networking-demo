@@ -1,0 +1,83 @@
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: demo-fast-backend
+  namespace: ai-networking-demo
+spec:
+  ai:
+    provider:
+      custom:
+        model: demo-fast
+        backendRef:
+          group: inference.networking.k8s.io
+          kind: InferencePool
+          name: demo-fast-router
+        formats:
+          - type: Completions
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: demo-quality-backend
+  namespace: ai-networking-demo
+spec:
+  ai:
+    provider:
+      custom:
+        model: demo-quality
+        backendRef:
+          group: inference.networking.k8s.io
+          kind: InferencePool
+          name: demo-quality-router
+        formats:
+          - type: Completions
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: model-routing
+  namespace: ai-networking-demo
+spec:
+  parentRefs:
+    - name: llm-d-inference-gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /v1/chat/completions
+          headers:
+            - name: x-model
+              value: demo-fast
+      backendRefs:
+        - group: agentgateway.dev
+          kind: AgentgatewayBackend
+          name: demo-fast-backend
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /v1/chat/completions
+          headers:
+            - name: x-model
+              value: demo-quality
+      backendRefs:
+        - group: agentgateway.dev
+          kind: AgentgatewayBackend
+          name: demo-quality-backend
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: extract-model
+  namespace: ai-networking-demo
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: llm-d-inference-gateway
+  traffic:
+    phase: PreRouting
+    transformation:
+      request:
+        set:
+          - name: x-model
+            value: 'json(request.body).model'
