@@ -12,7 +12,7 @@
 A palestra de 30 minutos no KCD Brasil 2026 precisa de uma demonstração dos dois temas de rede para IA apresentados:
 
 1. **Inferência (State-Aware Routing & InferencePool)**: Roteamento inteligente de requisições de inferência considerando contexto, estado do backend e simulação de *KV Cache HIT/MISS* utilizando a **Gateway API** (`InferencePool` / `llm-d`).
-2. **Egress Gateway & Governança de IA**: Interceptação de chamadas de workloads para modelos externos (ex.: OpenAI `/v1/chat/completions`), injeção segura de API Keys via `ServiceAccount` e aplicação de *token rate limit*.
+2. **Egress Gateway & Governança de IA**: Interceptação de chamadas de workloads para modelos externos (ex.: OpenAI `/v1/chat/completions`), injeção de API Keys de um `Secret` e aplicação de *token rate limit*.
 
 ### Restrições
 
@@ -23,7 +23,7 @@ A palestra de 30 minutos no KCD Brasil 2026 precisa de uma demonstração dos do
 
 ## 2. Decisão de arquitetura
 
-Vamos usar um servidor de modelo simulado (*Mock Model Server*) em Python com FastAPI, empacotado em um container leve. Os manifestos Kubernetes cobrem a Gateway API e o Egress Gateway.
+Vamos usar um servidor de modelo simulado (*Mock Model Server*) em Go, empacotado em um container leve. Kind é o cluster de referência. A inferência usa Gateway API/GAIE, `llm-d` Router em Gateway Mode e Agentgateway.
 
 ### Componentes
 
@@ -34,9 +34,9 @@ Vamos usar um servidor de modelo simulado (*Mock Model Server*) em Python com Fa
 2. **Gateway API + InferencePool (`llm-d`)**
    - Implantação de 3 réplicas do `mock-llm-server`.
    - A Gateway API aplica uma política de `InferencePool` para demonstrar distribuição baseada em estado e métricas.
-3. **Egress AI Gateway (Istio / extensão da Gateway API)**
+3. **Egress AI Gateway (Agentgateway)**
    - O Pod cliente envia requisições sem API Key no código.
-   - O Egress Gateway valida a identidade do Pod via `ServiceAccount` do Kubernetes, injeta o cabeçalho `Authorization: Bearer <API_KEY>` e aplica regras de *token rate limiting*.
+   - O Egress Gateway injeta o cabeçalho `Authorization: Bearer <API_KEY>` de um `Secret` e aplica quota de tokens debitada após a resposta.
 
 ---
 
@@ -51,9 +51,9 @@ Vamos usar um servidor de modelo simulado (*Mock Model Server*) em Python com Fa
 
 ### Escolha: servidor simulado (*mock*) e Kubernetes Gateway API
 
-- Roda em qualquer cluster Kind ou Minikube local com menos de 500 MB de RAM.
+- Roda em Kind local com menos de 500 MB de RAM e sem registry externo para a imagem do mock.
 - Produz respostas rápidas e previsíveis durante a palestra.
-- Exercita a camada de controle e de dados da rede: Gateway API, Istio, ServiceAccount e Egress.
+- Exercita a camada de controle e de dados da rede: Gateway API, Agentgateway, `InferencePool` e Egress.
 
 ---
 
@@ -67,3 +67,4 @@ Vamos usar um servidor de modelo simulado (*Mock Model Server*) em Python com Fa
 ### Limitação conhecida
 
 - A demonstração não executa inferência em GPU. O slide de introdução deixará isso claro para a audiência.
+- A demo não mapeia dinamicamente uma `ServiceAccount` para uma API key; esse fluxo exigiria um componente de autorização adicional.

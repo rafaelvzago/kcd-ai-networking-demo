@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-networking-demo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-llm
+  namespace: ai-networking-demo
+spec:
+  selector:
+    app: mock-llm
+  ports:
+    - port: 8080
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-1
+  namespace: ai-networking-demo
+spec:
+  selector:
+    app: mock-llm
+    demo.kcd.io/backend: backend-1
+  ports:
+    - port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-1
+  namespace: ai-networking-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-llm
+      demo.kcd.io/backend: backend-1
+  template:
+    metadata:
+      labels:
+        app: mock-llm
+        demo.kcd.io/backend: backend-1
+        demo.kcd.io/model: demo-fast
+    spec:
+      containers:
+        - name: mock-llm
+          image: mock-llm-server:dev
+          imagePullPolicy: Never
+          env:
+            - name: INSTANCE_NAME
+              value: backend-1
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 50Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-2
+  namespace: ai-networking-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-llm
+      demo.kcd.io/backend: backend-2
+  template:
+    metadata:
+      labels:
+        app: mock-llm
+        demo.kcd.io/backend: backend-2
+        demo.kcd.io/model: demo-fast
+    spec:
+      containers:
+        - name: mock-llm
+          image: mock-llm-server:dev
+          imagePullPolicy: Never
+          env:
+            - name: INSTANCE_NAME
+              value: backend-2
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests: {cpu: 100m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 50Mi}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-3
+  namespace: ai-networking-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-llm
+      demo.kcd.io/backend: backend-3
+  template:
+    metadata:
+      labels:
+        app: mock-llm
+        demo.kcd.io/backend: backend-3
+        demo.kcd.io/model: demo-quality
+    spec:
+      containers:
+        - name: mock-llm
+          image: mock-llm-server:dev
+          imagePullPolicy: Never
+          env:
+            - name: INSTANCE_NAME
+              value: backend-3
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests: {cpu: 100m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 50Mi}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
