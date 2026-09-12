@@ -1,6 +1,6 @@
-# KCD Brasil 2026 — Architecture & Product Specifications
+# KCD Brasil 2026: demonstração de networking para IA
 
-Este repositório contém a documentação técnica da demonstração prática para a palestra **“A Evolução do Kubernetes Networking na Era da IA”** no KCD Brasil 2026.
+Este repositório reúne a demo da palestra "A Evolução do Kubernetes Networking na Era da IA", apresentada no KCD Brasil 2026.
 
 ## Documentação
 
@@ -24,11 +24,11 @@ curl -X POST localhost:8080/v1/chat/completions \
   -d '{"model":"demo","messages":[{"role":"user","content":"cache me"}]}'
 ```
 
-Repita o `curl` para observar `X-Cache-Status: HIT`.
+Repita o comando para receber `X-Cache-Status: HIT`.
 
 ## InferencePool
 
-Com `helm` instalado, o script fixa Gateway API `v1.6.0`, GAIE `v1.5.0`, Agentgateway `v1.4.1` e llm-d Router `v0.9.0`:
+Com `helm` instalado, o script usa Gateway API `v1.6.0`, GAIE `v1.5.0`, Agentgateway `v1.4.1` e llm-d Router `v0.9.0`.
 
 ```bash
 ./scripts/install-inference.sh
@@ -36,11 +36,11 @@ kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo get gateway,
 kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo port-forward service/llm-d-inference-gateway 8080:80
 ```
 
-Em outro terminal, envie o mesmo Chat Completion para `http://localhost:8080/v1/chat/completions`. O `HTTPRoute` criado pelo chart encaminha a chamada ao `InferencePool`.
+Em outro terminal, envie um Chat Completion para `http://localhost:8080/v1/chat/completions`. O `HTTPRoute` criado pelo chart encaminha a chamada ao `InferencePool`.
 
 ## Egress e quota
 
-O cenário de Egress cria um cliente sem chave, um upstream protegido por `Secret` e uma quota local de 20 tokens por minuto:
+O cenário de Egress tem um cliente sem chave, um upstream protegido por `Secret` e uma quota local de 20 tokens por minuto.
 
 ```bash
 ./scripts/install-egress.sh
@@ -51,4 +51,4 @@ kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo exec deploym
   -d '{"model":"demo","messages":[{"role":"user","content":"token budget test"}]}'
 ```
 
-O comando não envia `Authorization`; o Agentgateway lê `upstream-api-key` e injeta o Bearer token no upstream. A resposta deve identificar `external-mock`. Repita até a quota ser debitada e uma chamada posterior retornar `429`.
+O comando não envia `Authorization`. O Agentgateway lê `upstream-api-key` e injeta o token Bearer no upstream. A resposta identifica `external-mock`. Repita a chamada até uma delas retornar `429`.
