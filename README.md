@@ -24,4 +24,16 @@ curl -X POST localhost:8080/v1/chat/completions \
   -d '{"model":"demo","messages":[{"role":"user","content":"cache me"}]}'
 ```
 
-Repita o `curl` para observar `X-Cache-Status: HIT`. Para a demonstração completa, os charts oficiais do `llm-d` Router Gateway Mode e do Agentgateway devem ser instalados sobre este cluster; eles fornecem os CRDs e o `InferencePool` que não pertencem ao mock.
+Repita o `curl` para observar `X-Cache-Status: HIT`.
+
+## InferencePool
+
+Com `helm` instalado, o script fixa Gateway API `v1.6.0`, GAIE `v1.5.0`, Agentgateway `v1.4.1` e llm-d Router `v0.9.0`:
+
+```bash
+./scripts/install-inference.sh
+kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo get gateway,httproute,inferencepool
+kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo port-forward service/llm-d-inference-gateway 8080:80
+```
+
+Em outro terminal, envie o mesmo Chat Completion para `http://localhost:8080/v1/chat/completions`. O `HTTPRoute` criado pelo chart encaminha a chamada ao `InferencePool`.

@@ -1,0 +1,26 @@
+router:
+  epp:
+    replicas: 1
+    image:
+      tag: v0.9.0
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+  modelServers:
+    matchLabels:
+      app: mock-llm
+    type: vllm
+    protocol: http
+    targetPorts:
+      - number: 8080
+  inferencePool:
+    failureMode: FailClosed
+httpRoute:
+  create: true
+  inferenceGatewayName: llm-d-inference-gateway
+  inferenceGatewayNamespace: ai-networking-demo
