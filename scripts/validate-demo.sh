@@ -34,13 +34,16 @@ printf '%s\n' "$first" | grep -qi '^X-Cache-Status: MISS'
 printf '%s\n' "$second" | grep -qi '^X-Cache-Status: HIT'
 
 instances=$(
-  for i in $(seq 1 12); do
+  for i in $(seq 1 36); do
     response=$(request --data "{\"model\":\"demo\",\"messages\":[{\"role\":\"user\",\"content\":\"load-check-$i-$(date +%s%N)\"}]}")
     body "$response" | grep -o '"instance":"backend-[123]"' || true
   done | sort -u
 )
 for backend in backend-1 backend-2 backend-3; do
-  printf '%s\n' "$instances" | grep -q "\"instance\":\"$backend\""
+  if ! printf '%s\n' "$instances" | grep -q "\"instance\":\"$backend\""; then
+    printf 'gateway distribution: expected all three backends; observed: %s\n' "$instances" >&2
+    exit 1
+  fi
 done
 
 printf '%s\n' 'checking model routing'
