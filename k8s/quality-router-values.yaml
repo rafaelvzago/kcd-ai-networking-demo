@@ -1,0 +1,13 @@
+provider:
+  name: istio
+
+router:
+  modelServers:
+    matchLabels:
+      app: quality-simulator
+    type: vllm
+    protocol: http
+    targetPorts:
+      - number: 8000
+  inferencePool:
+    failureMode: FailClose

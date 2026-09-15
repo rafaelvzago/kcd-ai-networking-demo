@@ -1,0 +1,37 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: fast-route
+  namespace: ai-networking-demo
+spec:
+  parentRefs:
+    - name: fast-inference-gateway
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: /v1/chat/completions}
+          headers:
+            - name: x-demo-pool
+              value: fast
+      backendRefs:
+        - group: inference.networking.k8s.io
+          kind: InferencePool
+          name: fast-router
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: quality-route
+  namespace: ai-networking-demo
+spec:
+  parentRefs:
+    - name: fast-inference-gateway
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: /v1/chat/completions}
+          headers:
+            - name: x-demo-pool
+              value: quality
+      backendRefs:
+        - group: inference.networking.k8s.io
+          kind: InferencePool
+          name: quality-router
