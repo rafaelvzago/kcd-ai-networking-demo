@@ -13,11 +13,19 @@ sudo sysctl -w fs.inotify.max_user_instances=512
 
 ## Preparar a demo
 
+Com internet, crie o cache e carregue as imagens no Kind:
+
 ```bash
-make model-routing
+make prepare-offline
 ```
 
-Isso instala o Gateway Istio, três simuladores `fast` (TTFT de 100 ms), um `quality` (TTFT de 500 ms) e um `InferencePool` para cada modelo.
+Em seguida, faça o ensaio usando somente o cache:
+
+```bash
+OFFLINE=1 make model-routing
+```
+
+Isso instala o Gateway Istio, três simuladores `fast` (TTFT de 100 ms), um `quality` (TTFT de 500 ms) e um `InferencePool` para cada modelo, sem baixar manifests, charts ou imagens.
 
 ## Validar
 
@@ -29,7 +37,7 @@ O cliente envia uma API OpenAI-compatível para `/v1/chat/completions`. `X-Demo-
 
 ## Ensaio offline
 
-Prepare o cluster antes da palestra. No palco, rode somente:
+Prepare o cache e o cluster antes da palestra. No palco, rode somente:
 
 ```bash
 make rehearse-offline
