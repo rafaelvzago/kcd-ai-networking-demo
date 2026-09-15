@@ -1,0 +1,17 @@
+provider:
+  name: istio
+
+router:
+  modelServers:
+    matchLabels:
+      app: fast-simulator
+    type: vllm
+    protocol: http
+    targetPorts:
+      - number: 8000
+  inferencePool:
+    failureMode: FailClose
+httpRoute:
+  create: true
+  inferenceGatewayName: fast-inference-gateway
+  inferenceGatewayNamespace: ai-networking-demo

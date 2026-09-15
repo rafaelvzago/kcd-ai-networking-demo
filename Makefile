@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help test run image bootstrap inference model-routing validate-model-routing validate-demo egress demo status diagrams
+.PHONY: help test run image bootstrap inference fast-inference validate-fast-inference model-routing validate-model-routing validate-demo egress demo status diagrams
 
 help:
 	@printf '%s\n' \
@@ -9,6 +9,8 @@ help:
 	  'make image      # imagem Docker local' \
 	  'make bootstrap  # Kind + tres backends' \
 	  'make inference  # Gateway API, GAIE, Agentgateway e llm-d' \
+	  'make fast-inference # Istio + llm-d + tres simuladores fast' \
+	  'make validate-fast-inference # valida o caminho fast pelo Istio' \
 	  'make model-routing          # pools demo-fast e demo-quality' \
 	  'make validate-model-routing # valida o roteamento por modelo' \
 	  'make validate-demo          # valida toda a demonstracao no Kind' \
@@ -31,6 +33,12 @@ bootstrap:
 
 inference:
 	./scripts/install-inference.sh
+
+fast-inference:
+	bash ./scripts/install-fast-inference.sh
+
+validate-fast-inference:
+	bash ./scripts/validate-fast-inference.sh
 
 model-routing:
 	./scripts/install-model-routing.sh

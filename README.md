@@ -12,12 +12,19 @@ Este repositório reúne a demo da palestra "A Evolução do Kubernetes Networki
 
 ## Pré-requisitos
 
-- Go 1.27+
+- Go 1.26+
 - Docker
 - Kind
 - `kubectl`
 - Helm
 - [D2](https://d2lang.com/) (para regenerar os diagramas)
+
+No Linux, Kind precisa de ao menos 512 instâncias `inotify`. Se `make fast-inference`
+informar esse requisito, rode uma vez:
+
+```bash
+sudo sysctl -w fs.inotify.max_user_instances=512
+```
 
 Comece com:
 
@@ -124,7 +131,16 @@ Repita o teste de cache. O primeiro prompt novo deve ser `MISS`; a repetição d
 
 ## InferencePool
 
-O script usa Gateway API `v1.6.0`, GAIE `v1.5.0`, Agentgateway `v1.4.1` e llm-d Router `v0.9.0`.
+O caminho novo e independente da demo usa Istio e três réplicas do simulador do llm-d para o modelo `fast`:
+
+```bash
+make fast-inference
+make validate-fast-inference
+```
+
+O segundo comando mostra a instância selecionada, `usage` e o TTFT medido pelo cliente. Ele não usa chave nem provedor externo.
+
+O script usa Gateway API `v1.6.0`, GAIE `v1.5.0`, Istio `1.31.0` e llm-d Router `v0.9.0`.
 
 ```bash
 make inference
