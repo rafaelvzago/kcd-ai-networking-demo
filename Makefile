@@ -28,6 +28,7 @@ validate-model-routing:
 	bash ./scripts/validate-model-routing.sh
 
 rehearse-offline:
+	OFFLINE=1 bash ./scripts/install-model-routing.sh
 	bash ./scripts/validate-model-routing.sh
 
 status:

@@ -1,6 +1,8 @@
 name: Validate demo
 
 on:
+  push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -15,4 +17,25 @@ jobs:
       - uses: helm/kind-action@v1.13.0
       - run: sudo sysctl -w fs.inotify.max_user_instances=512
       - run: make model-routing
+      - run: make validate-model-routing
+
+  rehearse-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: helm/kind-action@v1.13.0
+      - run: sudo sysctl -w fs.inotify.max_user_instances=512
+      - run: make prepare-offline
+      - run: |
+          kind delete cluster --name kcd-ai-networking-demo
+          kind create cluster --name kcd-ai-networking-demo
+          for image in .demo-cache/images/*.tar; do
+            kind load image-archive --name kcd-ai-networking-demo "$image"
+          done
+      - run: |
+          echo "OFFLINE_EGRESS_DEVICE=$(ip route show default | awk '/default/ {print $5; exit}')" >> "$GITHUB_ENV"
+          sudo iptables -I FORWARD -o "$OFFLINE_EGRESS_DEVICE" -j REJECT
       - run: make rehearse-offline
+      - if: always()
+        run: sudo iptables -D FORWARD -o "$OFFLINE_EGRESS_DEVICE" -j REJECT
