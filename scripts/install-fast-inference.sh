@@ -40,6 +40,7 @@ else
 fi
 kubectl --context "$context" rollout status --namespace istio-system deployment/istiod --timeout=180s
 kubectl --context "$context" get gatewayclass istio >/dev/null
+kubectl --context "$context" create namespace "$namespace" --dry-run=client -o yaml | kubectl --context "$context" apply -f -
 kubectl --context "$context" apply --filename k8s/fast-inference.yaml --filename k8s/fast-inference-gateway.yaml
 kubectl --context "$context" rollout status --namespace "$namespace" deployment/fast-simulator
 kubectl --context "$context" rollout status --namespace "$namespace" deployment/fast-client
