@@ -1,221 +1,42 @@
-# KCD Brasil 2026: demonstração de networking para IA
+# KCD Brasil 2026: networking para IA
 
-Este repositório reúne a demo da palestra "A Evolução do Kubernetes Networking na Era da IA", apresentada no KCD Brasil 2026.
-
-## Documentação
-
-- [ADR-001](docs/adr/0001-mock-model-server-adr.md): decisão de arquitetura da demonstração prática.
-- [PRD-001](docs/prd/0001-mock-model-server-prd.md): requisitos e casos de teste.
-- [Arquitetura](docs/architecture/README.md): visão de implantação e fluxos de requisição.
-
-![Arquitetura da demonstração](docs/architecture/overview.svg)
+Demo local de inferência com Istio, Gateway API, GAIE, `InferencePool` e llm-d.
 
 ## Pré-requisitos
 
-- Go 1.26+
-- Docker
-- Kind
-- `kubectl`
-- Helm
-- [D2](https://d2lang.com/) (para regenerar os diagramas)
-
-No Linux, Kind precisa de ao menos 512 instâncias `inotify`. Se `make fast-inference`
-informar esse requisito, rode uma vez:
+- Docker, Kind, `kubectl` e Helm
+- No Linux: `fs.inotify.max_user_instances >= 512`
 
 ```bash
 sudo sysctl -w fs.inotify.max_user_instances=512
 ```
 
-Comece com:
-
-```bash
-make help
-make test
-```
-
-## Para desenvolver
-
-Depois de alterar o servidor mock, rode `make test`. Para conferir a demonstração inteira no Kind, use:
-
-```bash
-make demo
-make validate-demo
-```
-
-`make demo` cria o cluster quando necessário, monta a imagem local e instala os cenários de inferência, roteamento por modelo e egress. `make validate-demo` confere os workloads, cache, distribuição entre os backends, roteamento, credencial do upstream e quota. A parte da quota pode esperar até um minuto por uma janela nova.
-
-O GitHub executa esses testes em todo pull request. O merge na `main` só fica disponível quando o check `Validate demo / validate-demo` passar.
-
-## Validar o mock em Go
-
-Em um terminal:
-
-```bash
-make run
-```
-
-Em outro terminal, envie a primeira chamada:
-
-```bash
-curl -i -X POST http://localhost:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"demo","messages":[{"role":"user","content":"cache me"}]}'
-```
-
-Espere `200`, `X-Cache-Status: MISS` e `X-Instance-Name: mock-llm-server`. Repita o comando. A segunda resposta deve ter `X-Cache-Status: HIT`.
-
-O JSON tem precedência sobre o header de delay:
-
-```bash
-curl -i -X POST http://localhost:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -H 'X-Simulate-Delay-MS: nope' \
-  -d '{"model":"demo","messages":[{"role":"user","content":"delay override"}],"simulate_delay_ms":0}'
-```
-
-Essa chamada deve retornar `200`.
-
-Valide a entrada inválida:
-
-```bash
-curl -i -X POST http://localhost:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"","messages":[]}'
-```
-
-O resultado esperado é `400 Bad Request`. Pare o processo com `Ctrl-C` antes da próxima etapa.
-
-## Validar o container
-
-```bash
-make image
-docker run --rm -p 8080:8080 \
-  -e INSTANCE_NAME=local-container \
-  -e REQUIRED_API_KEY=demo \
-  mock-llm-server:dev
-```
-
-Em outro terminal, esta chamada deve retornar `401`:
-
-```bash
-curl -i -X POST http://localhost:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"demo","messages":[{"role":"user","content":"secure request"}]}'
-```
-
-Com a chave, deve retornar `200`:
-
-```bash
-curl -i -X POST http://localhost:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer demo' \
-  -d '{"model":"demo","messages":[{"role":"user","content":"secure request"}]}'
-```
-
-Pare o container com `Ctrl-C`.
-
-## Validar no Kind
-
-```bash
-make bootstrap
-kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo get deployments,pods,service
-```
-
-Os três pods, `backend-1`, `backend-2` e `backend-3`, devem estar `Running`. Em um terminal:
-
-```bash
-kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo port-forward service/mock-llm 8080:8080
-```
-
-Repita o teste de cache. O primeiro prompt novo deve ser `MISS`; a repetição deve ser `HIT`. O `port-forward` fixa a sessão em uma réplica, o que é esperado.
-
-## InferencePool
-
-O caminho novo e independente da demo usa Istio e três réplicas do simulador do llm-d para o modelo `fast`:
-
-```bash
-make fast-inference
-make validate-fast-inference
-```
-
-O segundo comando mostra a instância selecionada, `usage` e o TTFT medido pelo cliente. Ele não usa chave nem provedor externo.
-
-O script usa Gateway API `v1.6.0`, GAIE `v1.5.0`, Istio `1.31.0` e llm-d Router `v0.9.0`.
-
-```bash
-make inference
-kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo get gateway,httproute,inferencepool
-kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo port-forward service/llm-d-inference-gateway 8080:80
-```
-
-Em outro terminal:
-
-```bash
-curl -i -X POST http://localhost:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"demo","messages":[{"role":"user","content":"through inference pool"}]}'
-```
-
-Espere `200`, `X-Instance-Name: backend-<n>` e `x-went-into-resp-headers: true`. A chamada passou pelo Gateway e pelo `InferencePool`.
-
-Envie prompts distintos para observar a distribuição entre os três backends:
-
-```bash
-for i in $(seq 1 10); do
-  curl -s -X POST http://localhost:8080/v1/chat/completions \
-    -H 'Content-Type: application/json' \
-    -d "{\"model\":\"demo\",\"messages\":[{\"role\":\"user\",\"content\":\"backend check $i\"}]}" \
-    | grep -o '"instance":"backend-[0-9]"'
-done
-```
-
-Os resultados devem incluir `backend-1`, `backend-2` e `backend-3`. O cache do mock é local a cada réplica; repetir um prompt pelo Gateway não garante `HIT`.
-
-## Roteamento por modelo
-
-O cenário adicional usa dois pools no mesmo Gateway: `fast` tem três réplicas e TTFT menor; `quality` tem uma réplica e TTFT maior. O header `X-Demo-Pool` escolhe o pool, pois o Gateway API não roteia pelo campo `model` do JSON.
+## Preparar a demo
 
 ```bash
 make model-routing
+```
+
+Isso instala o Gateway Istio, três simuladores `fast` (TTFT de 100 ms), um `quality` (TTFT de 500 ms) e um `InferencePool` para cada modelo.
+
+## Validar
+
+```bash
 make validate-model-routing
 ```
 
-O segundo comando envia as duas requisições pelo Gateway e falha se cada uma não chegar ao simulador de seu pool.
+O cliente envia uma API OpenAI-compatível para `/v1/chat/completions`. `X-Demo-Pool: fast|quality` seleciona o `InferencePool`; a resposta mostra `x-inference-pod`, `usage` e TTFT.
 
 ## Ensaio offline
 
-Prepare o cluster antes da palestra com `make model-routing`. No palco, sem acesso à internet, rode somente:
+Prepare o cluster antes da palestra. No palco, rode somente:
 
 ```bash
 make rehearse-offline
 ```
 
-Esse comando não instala charts, não aplica manifests e não baixa imagens: ele chama os simuladores já presentes no Kind pelo Gateway Istio.
+Esse comando não instala charts, aplica manifests nem baixa imagens.
 
-## Egress e quota
+## Decisão
 
-O cenário de Egress tem um cliente sem chave, um upstream protegido por `Secret` e uma quota local de 20 tokens por minuto.
-
-```bash
-make egress
-```
-
-Faça duas chamadas consecutivas para não cruzar a virada do minuto:
-
-```bash
-for i in 1 2; do
-  kubectl --context kind-kcd-ai-networking-demo \
-    -n ai-networking-demo exec deployment/client-app -- \
-    curl -s -o /dev/null -w "chamada $i: HTTP %{http_code}\n" \
-    http://llm-d-inference-gateway.ai-networking-demo.svc.cluster.local/v1/chat/completions \
-    -H 'Host: egress.local' \
-    -H 'Content-Type: application/json' \
-    -d '{"model":"demo","messages":[{"role":"user","content":"one two three four five six seven eight nine"}]}'
-done
-```
-
-Espere `chamada 1: HTTP 200` e `chamada 2: HTTP 429`. O cliente não envia `Authorization`; o Agentgateway lê `upstream-api-key` e injeta o token Bearer no upstream.
-
-## Manutenção da arquitetura
-
-Ao alterar a arquitetura, manifests Kubernetes, fluxos de rede ou integrações, atualize os fontes D2 em `docs/architecture/` e rode `make diagrams`. Os SVGs são gerados: não os edite manualmente.
+[ADR-002](docs/adr/0002-uma-demo-kubernetes-com-istio.md) registra o escopo da demonstração.
