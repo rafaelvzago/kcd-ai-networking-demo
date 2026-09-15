@@ -33,7 +33,7 @@ Isso instala o Gateway Istio, três simuladores `fast` (TTFT de 100 ms), um `qua
 make validate-model-routing
 ```
 
-O cliente envia uma API OpenAI-compatível para `/v1/chat/completions`. `X-Demo-Pool: fast|quality` seleciona o `InferencePool`; a resposta mostra `x-inference-pod`, `usage` e TTFT.
+O cliente envia uma API OpenAI-compatível para `/v1/chat/completions`. `X-Demo-Pool: fast|quality` seleciona o `InferencePool`; a validação mostra os pods, `usage` e exige TTFT de `fast` menor que o de `quality`.
 
 ## Ensaio offline
 
