@@ -38,8 +38,10 @@ jobs:
             kind load image-archive --name kcd-ai-networking-demo "$image"
           done
       - run: |
-          echo "OFFLINE_EGRESS_DEVICE=$(ip route show default | awk '/default/ {print $5; exit}')" >> "$GITHUB_ENV"
+          OFFLINE_EGRESS_DEVICE="$(ip route show default | awk '/default/ {print $5; exit}')"
+          echo "OFFLINE_EGRESS_DEVICE=$OFFLINE_EGRESS_DEVICE" >> "$GITHUB_ENV"
+          test -n "$OFFLINE_EGRESS_DEVICE"
           sudo iptables -I FORWARD -o "$OFFLINE_EGRESS_DEVICE" -j REJECT
       - run: make rehearse-offline
       - if: always()
-        run: test -z "$OFFLINE_EGRESS_DEVICE" || sudo iptables -D FORWARD -o "$OFFLINE_EGRESS_DEVICE" -j REJECT
+        run: test -z "$OFFLINE_EGRESS_DEVICE" || ! sudo iptables -C FORWARD -o "$OFFLINE_EGRESS_DEVICE" -j REJECT || sudo iptables -D FORWARD -o "$OFFLINE_EGRESS_DEVICE" -j REJECT
