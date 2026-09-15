@@ -22,6 +22,10 @@ else
   helm upgrade --install quality-router "$chart" --kube-context "$context" --namespace "$namespace" \
     --version v0.9.0 --values k8s/quality-router-values.yaml
 fi
+for deployment in fast-router-epp quality-router-epp; do
+  kubectl --context "$context" --namespace "$namespace" set resources "deployment/$deployment" \
+    --requests=cpu=100m,memory=128Mi
+done
 for deployment in fast-router-epp quality-router-epp quality-simulator; do
   kubectl --context "$context" --namespace "$namespace" rollout status "deployment/$deployment"
 done
