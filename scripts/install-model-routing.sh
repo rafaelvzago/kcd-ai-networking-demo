@@ -31,3 +31,9 @@ for deployment in fast-router-epp quality-router-epp quality-simulator; do
 done
 
 kubectl --context "$context" apply --filename k8s/model-routes.yaml
+for route in fast-route quality-route; do
+  kubectl --context "$context" --namespace "$namespace" wait \
+    --for=jsonpath='{.status.parents[0].conditions[?(@.type=="Accepted")].status}'=True "httproute/$route" --timeout=180s
+  kubectl --context "$context" --namespace "$namespace" wait \
+    --for=jsonpath='{.status.parents[0].conditions[?(@.type=="ResolvedRefs")].status}'=True "httproute/$route" --timeout=180s
+done

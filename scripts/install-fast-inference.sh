@@ -50,3 +50,4 @@ else
   helm upgrade --install fast-router "$router_chart" --kube-context "$context" --namespace "$namespace" --version v0.9.0 --values k8s/fast-router-values.yaml
 fi
 kubectl --context "$context" wait --namespace "$namespace" --for=condition=Programmed gateway/fast-inference-gateway --timeout=180s
+kubectl --context "$context" rollout status --namespace "$namespace" deployment/fast-inference-gateway-istio --timeout=180s
