@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help test run image bootstrap inference fast-inference validate-fast-inference model-routing validate-model-routing validate-demo egress demo status diagrams
+.PHONY: help test run image bootstrap inference fast-inference validate-fast-inference model-routing validate-model-routing rehearse-offline validate-demo egress demo status diagrams
 
 help:
 	@printf '%s\n' \
@@ -13,6 +13,7 @@ help:
 	  'make validate-fast-inference # valida o caminho fast pelo Istio' \
 	  'make model-routing          # pools fast e quality pelo Istio' \
 	  'make validate-model-routing # valida o roteamento por modelo' \
+	  'make rehearse-offline       # valida a demo sem instalar ou baixar nada' \
 	  'make validate-demo          # valida toda a demonstracao no Kind' \
 	  'make egress     # Secret, client-app e quota de tokens' \
 	  'make diagrams   # renderiza os diagramas de arquitetura (requer d2)' \
@@ -45,6 +46,9 @@ model-routing:
 
 validate-model-routing:
 	./scripts/validate-model-routing.sh
+
+rehearse-offline:
+	bash ./scripts/validate-model-routing.sh
 
 validate-demo:
 	./scripts/validate-demo.sh

@@ -182,6 +182,16 @@ make validate-model-routing
 
 O segundo comando envia as duas requisições pelo Gateway e falha se cada uma não chegar ao simulador de seu pool.
 
+## Ensaio offline
+
+Prepare o cluster antes da palestra com `make model-routing`. No palco, sem acesso à internet, rode somente:
+
+```bash
+make rehearse-offline
+```
+
+Esse comando não instala charts, não aplica manifests e não baixa imagens: ele chama os simuladores já presentes no Kind pelo Gateway Istio.
+
 ## Egress e quota
 
 O cenário de Egress tem um cliente sem chave, um upstream protegido por `Secret` e uma quota local de 20 tokens por minuto.
