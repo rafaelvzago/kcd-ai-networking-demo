@@ -2,6 +2,34 @@
 
 Demo local de inferência com Istio, Gateway API, GAIE, `InferencePool` e llm-d.
 
+## Modelo rápido
+
+Modelo simulado com TTFT menor, atendido por três réplicas no pool `fast`, para evidenciar o balanceamento.
+
+![Modelo rápido](docs/modelo-rapido.gif)
+
+## Modelo de qualidade
+
+Modelo simulado com TTFT maior, atendido pelo pool separado `quality`, para evidenciar a seleção de pools.
+
+![Modelo de qualidade](docs/modelo-qualidade.gif)
+
+## Pool inválido
+
+Um valor de `X-Demo-Pool` diferente de `fast` ou `quality` não corresponde a nenhuma rota e não alcança um `InferencePool`.
+
+![Pool inválido](docs/pool-invalido.gif)
+
+## Gerar os diagramas
+
+Use o [FlowStory](https://github.com/noyitz/flowstory). Consulte o [guia rápido](https://github.com/noyitz/flowstory/blob/main/docs/quick-start-prompt.md) e a [referência do schema](https://github.com/noyitz/flowstory/blob/main/CLAUDE.md).
+
+1. Abra `docs/architecture/diagram.json` no FlowStory.
+2. Exporte um GIF para cada fluxo: `fast_happy_path`, `quality_happy_path` e `invalid_pool`.
+3. Salve-os, respectivamente, como `docs/modelo-rapido.gif`, `docs/modelo-qualidade.gif` e `docs/pool-invalido.gif`.
+
+O JSON é a fonte do diagrama; não há arquivos D2 ou SVG para manter.
+
 ## Pré-requisitos
 
 - Docker, Kind, `kubectl` e Helm
