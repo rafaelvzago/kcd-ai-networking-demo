@@ -173,14 +173,14 @@ Os resultados devem incluir `backend-1`, `backend-2` e `backend-3`. O cache do m
 
 ## Roteamento por modelo
 
-O cenário adicional usa dois pools. `demo-fast` vai para `backend-1` ou `backend-2`; `demo-quality` vai para `backend-3`.
+O cenário adicional usa dois pools no mesmo Gateway: `fast` tem três réplicas e TTFT menor; `quality` tem uma réplica e TTFT maior. O header `X-Demo-Pool` escolhe o pool, pois o Gateway API não roteia pelo campo `model` do JSON.
 
 ```bash
 make model-routing
 make validate-model-routing
 ```
 
-O segundo comando envia as duas requisições pelo Gateway e falha se `demo-fast` não chegar a `backend-1` ou `backend-2`, ou se `demo-quality` não chegar a `backend-3`.
+O segundo comando envia as duas requisições pelo Gateway e falha se cada uma não chegar ao simulador de seu pool.
 
 ## Egress e quota
 

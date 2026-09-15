@@ -8,10 +8,10 @@ help:
 	  'make run        # mock local em :8080' \
 	  'make image      # imagem Docker local' \
 	  'make bootstrap  # Kind + tres backends' \
-	  'make inference  # Gateway API, GAIE, Agentgateway e llm-d' \
+	  'make inference  # demo legada: Gateway API, GAIE e llm-d' \
 	  'make fast-inference # Istio + llm-d + tres simuladores fast' \
 	  'make validate-fast-inference # valida o caminho fast pelo Istio' \
-	  'make model-routing          # pools demo-fast e demo-quality' \
+	  'make model-routing          # pools fast e quality pelo Istio' \
 	  'make validate-model-routing # valida o roteamento por modelo' \
 	  'make validate-demo          # valida toda a demonstracao no Kind' \
 	  'make egress     # Secret, client-app e quota de tokens' \
