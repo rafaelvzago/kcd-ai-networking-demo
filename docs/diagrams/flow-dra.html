@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DRA + DRANET allocation flow</title>
+  <link rel="stylesheet" href="https://noyitz.github.io/flowstory/templates/style.css">
+  <style>
+    .fs-panel { transition:transform .2s ease,background .3s,border-color .3s; }
+    #fs-overlay { right:380px !important; z-index:1000 !important; }
+    #fs-highlight-box { z-index:900 !important; }
+    #fs-overlay-card { position:fixed !important; left:calc((100vw - 380px) / 2) !important; top:50% !important; transform:translate(-50%,-50%); width:min(900px,calc(100vw - 40px)); max-width:min(900px,calc(100vw - 40px)) !important; max-height:calc(100vh - 70px); overflow:auto; }
+    #fs-overlay-details pre { margin:0; padding:18px; border-radius:10px; background:#0d1117; color:#e6edf3; font:15px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; }
+    #fs-overlay-details .yaml-key { color:#79c0ff; } #fs-overlay-details .yaml-value { color:#a5d6ff; }
+    #fs-overlay-details .yaml-comment { color:#8b949e; }
+    #fs-speed { min-width:62px; }
+    body.light #fs-overlay-card { background:#fff !important; border-color:#d0d7de !important; color:#24292f; }
+    body.light #fs-overlay-title { color:#24292f !important; } body.light #fs-overlay-desc { color:#57606a !important; }
+    body.light #fs-overlay-details pre { background:#f6f8fa; color:#24292f; } body.light #fs-overlay-details .yaml-key { color:#0550ae; }
+    body.light #fs-overlay-details .yaml-value { color:#0a3069; } body.light #fs-overlay-details .yaml-comment { color:#6e7781; }
+    #fs-panel-toggle { position:fixed; top:16px; right:396px; z-index:1100; width:36px; height:36px; border:1px solid var(--fs-border); border-radius:8px; background:var(--fs-bg-surface); color:var(--fs-text); cursor:pointer; font-size:18px; }
+    .fs-theme-toggle { right:438px; }
+    body.sidebar-collapsed .fs-panel { transform:translateX(100%); }
+    body.sidebar-collapsed #fs-panel-toggle { right:60px; }
+    body.sidebar-collapsed .fs-theme-toggle { right:16px; }
+    body.sidebar-collapsed .fs-title { right:0; }
+    body.sidebar-collapsed #fs-overlay { right:0 !important; }
+    body.sidebar-collapsed #fs-overlay-card { left:50% !important; }
+  </style>
+</head>
+<body>
+  <button class="fs-theme-toggle" id="fs-theme">☾</button>
+  <button id="fs-panel-toggle" type="button" aria-label="Hide sidebar" aria-expanded="true" title="Hide sidebar">›</button>
+  <div class="fs-brand" id="fs-brand"></div><div class="fs-title" id="fs-title"></div>
+  <div class="fs-panel">
+    <div class="fs-flow-bar"><select id="fs-flow-select"></select><button class="fs-start" id="fs-play">▶ Start</button><select id="fs-speed" aria-label="Playback speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option></select><button id="fs-loop">↻ Loop</button><button class="fs-reset" id="fs-reset">Reset</button></div>
+    <div class="fs-steps" id="fs-steps"><div class="fs-steps-title">Flow Steps <span>· click to jump</span></div><div id="fs-steps-container"></div></div>
+  </div>
+  <div id="fs-highlight-box" style="display:none;position:fixed;pointer-events:none"></div>
+  <div id="fs-overlay" style="display:none;position:fixed;inset:0;background:#0009"><div id="fs-overlay-card"><button id="fs-overlay-close">✕</button><div id="fs-overlay-accent"></div><h2 id="fs-overlay-title"></h2><p id="fs-overlay-desc"></p><div id="fs-overlay-details"></div><button id="fs-overlay-resume">▶ Resume Flow</button></div></div>
+  <div class="fs-legend" id="fs-legend"></div><canvas id="fs-canvas"></canvas>
+  <script type="module">
+    import { FlowStory } from "https://noyitz.github.io/flowstory/src/index.js";
+
+    const yaml = {
+      cluster: [`apiVersion: v1`, `kind: Cluster`, `metadata:`, `  name: dra-demo`, `# Kubernetes v1.35+; shown as a real cluster boundary`].join("\n"),
+      gpuDriver: [`apiVersion: apps/v1`, `kind: DaemonSet`, `metadata:`, `  name: dra-example-driver`, `  namespace: dra-demo`, `spec:`, `  template:`, `    spec:`, `      containers:`, `      - name: plugin`, `        image: registry.k8s.io/dra-example-driver/dra-example-driver:v0.3.0`, `# runs on workers and reports mock GPUs`].join("\n"),
+      netDriver: [`apiVersion: apps/v1`, `kind: DaemonSet`, `metadata:`, `  name: dranet`, `  namespace: kube-system`, `spec:`, `  template:`, `    spec:`, `      containers:`, `      - name: dranet`, `# discovers Linux interfaces on workers`].join("\n"),
+      gpuClass: [`apiVersion: resource.k8s.io/v1`, `kind: DeviceClass`, `metadata:`, `  name: gpu.example.com`, `spec:`, `  selectors:`, `  - cel:`, `      expression: device.driver == 'gpu.example.com'`].join("\n"),
+      netClass: [`apiVersion: resource.k8s.io/v1`, `kind: DeviceClass`, `metadata:`, `  name: dranet.net`, `spec:`, `  selectors:`, `  - cel:`, `      expression: device.driver == 'dra.net'`].join("\n"),
+      gpuSlice: [`apiVersion: resource.k8s.io/v1`, `kind: ResourceSlice`, `metadata:`, `  name: gpu-example-worker`, `spec:`, `  nodeName: dra-demo-worker`, `  devices:`, `  - name: gpu-0`, `    driver: gpu.example.com`, `    capacity:`, `      memory: 10Gi`].join("\n"),
+      netSlice: [`apiVersion: resource.k8s.io/v1`, `kind: ResourceSlice`, `metadata:`, `  name: dranet-worker`, `spec:`, `  nodeName: dra-demo-worker`, `  devices:`, `  - name: dranet-dummy0`, `    driver: dra.net`].join("\n"),
+      gpuTemplate: [`apiVersion: resource.k8s.io/v1`, `kind: ResourceClaimTemplate`, `metadata:`, `  name: gpu-mock-a`, `  namespace: dra-demo`, `spec:`, `  spec:`, `    devices:`, `      requests:`, `      - name: gpu`, `        exactly:`, `          deviceClassName: gpu.example.com`].join("\n"),
+      netTemplate: [`apiVersion: resource.k8s.io/v1`, `kind: ResourceClaimTemplate`, `metadata:`, `  name: dranet-dummy-a`, `  namespace: dra-demo`, `spec:`, `  spec:`, `    devices:`, `      requests:`, `      - name: network`, `        exactly:`, `          deviceClassName: dranet.net`, `# illustrative config renames it dranet0`].join("\n"),
+      gpuClaim: [`apiVersion: resource.k8s.io/v1`, `kind: ResourceClaim`, `metadata:`, `  name: pod-dra-consumer-a-gpu`, `  namespace: dra-demo`, `status:`, `  allocation:`, `    result: allocated`, `    devices: [gpu-0]`].join("\n"),
+      netClaim: [`apiVersion: resource.k8s.io/v1`, `kind: ResourceClaim`, `metadata:`, `  name: pod-dra-consumer-a-network`, `  namespace: dra-demo`, `status:`, `  allocation:`, `    result: allocated`, `  networkData: illustrative: driver output`].join("\n"),
+      pod: [`apiVersion: v1`, `kind: Pod`, `metadata:`, `  name: dra-consumer-a`, `  namespace: dra-demo`, `spec:`, `  resourceClaims:`, `  - name: gpu`, `    resourceClaimTemplateName: gpu-mock-a`, `  - name: network`, `    resourceClaimTemplateName: dranet-dummy-a`, `  containers:`, `  - name: consumer`, `    resources:`, `      claims: [gpu, network]`].join("\n"),
+      connect: [`kind: KubeletDevicePreparation`, `metadata:`, `  node: dra-demo-worker`, `spec:`, `  claims: [gpu, network]`, `# illustrative: kubelet invokes both DRA drivers`].join("\n"),
+      gpu: [`# Device entry; not a standalone Kubernetes object`, `apiVersion: resource.k8s.io/v1`, `kind: ResourceSlice`, `metadata:`, `  name: gpu-example-worker`, `spec:`, `  nodeName: dra-demo-worker`, `  devices:`, `  - name: gpu-0`, `    driver: gpu.example.com`, `    capacity:`, `      memory: 10Gi`].join("\n"),
+      network: [`# Device entry; not a standalone Kubernetes object`, `apiVersion: resource.k8s.io/v1`, `kind: ResourceSlice`, `metadata:`, `  name: dranet-worker`, `spec:`, `  nodeName: dra-demo-worker`, `  devices:`, `  - name: dranet-dummy0`, `    driver: dra.net`, `# Claim config renames the interface to dranet0 inside the Pod`].join("\n")
+    };
+
+    const diagram = {
+      meta: { title: "Dynamic Resource Allocation: GPU + Network devices", author: "Kubernetes Network AI Era" },
+      canvas: { width: 1250, height: 900 },
+      nodes: {
+        cluster: { x: 35, y: 45, w: 1180, h: 800, label: "Kubernetes cluster", type: "boundary", color: "#8b949e", labelAlign: "left" },
+        gpuLane: { x: 70, y: 100, w: 250, h: 470, label: "GPU lane", type: "container", color: "#58a6ff" },
+        netLane: { x: 930, y: 100, w: 250, h: 470, label: "Network lane", type: "container", color: "#f0883e" },
+        gpuDriver: { x: 85, y: 145, w: 220, h: 62, label: "dra-example-driver", sublabel: "discovers mock GPUs", color: "#58a6ff", inner: true },
+        gpuSlice: { x: 85, y: 285, w: 220, h: 62, label: "GPU ResourceSlice", sublabel: "worker inventory", color: "#58a6ff", inner: true },
+        gpuClass: { x: 85, y: 425, w: 220, h: 62, label: "GPU DeviceClass", sublabel: "select gpu.example.com", color: "#58a6ff", inner: true },
+        netDriver: { x: 945, y: 145, w: 220, h: 62, label: "DRANET", sublabel: "discovers interfaces", color: "#f0883e", inner: true },
+        netSlice: { x: 945, y: 285, w: 220, h: 62, label: "Net ResourceSlice", sublabel: "worker inventory", color: "#f0883e", inner: true },
+        netClass: { x: 945, y: 425, w: 220, h: 62, label: "Net DeviceClass", sublabel: "select dra.net", color: "#f0883e", inner: true },
+        gpuTemplate: { x: 400, y: 150, w: 210, h: 62, label: "GPU ClaimTemplate", sublabel: "request GPU", color: "#58a6ff", inner: true },
+        gpuClaim: { x: 415, y: 280, w: 180, h: 62, label: "GPU Claim", sublabel: "allocated", color: "#58a6ff", inner: true },
+        netTemplate: { x: 655, y: 150, w: 210, h: 62, label: "Net ClaimTemplate", sublabel: "request interface", color: "#f0883e", inner: true },
+        netClaim: { x: 670, y: 280, w: 180, h: 62, label: "Net Claim", sublabel: "allocated", color: "#f0883e", inner: true },
+        pod: { x: 500, y: 500, w: 250, h: 70, label: "Pod: dra-consumer", sublabel: "consumes both claims", color: "#8b949e", inner: true },
+        connect: { x: 530, y: 620, w: 190, h: 70, label: "Devices connected", sublabel: "kubelet + drivers", color: "#8b949e", inner: true },
+        gpu: { x: 160, y: 735, w: 210, h: 62, label: "GPU device", sublabel: "GPU_DEVICE_0", color: "#58a6ff", inner: true },
+        network: { x: 855, y: 735, w: 230, h: 62, label: "Network device", sublabel: "dranet0 + IP", color: "#f0883e", inner: true }
+      },
+      tooltips: Object.fromEntries(Object.entries(yaml).map(([id, code]) => [id, {
+        title: id === "template" ? "ResourceClaimTemplate" : id,
+        description: id === "gpu" ? "Device entry advertised by the GPU ResourceSlice; it is not a standalone Kubernetes resource."
+          : id === "network" ? "Device entry advertised by the DRANET ResourceSlice; claim configuration renames it to dranet0 in the Pod."
+          : "Illustrative manifest matching this flow.",
+        yaml: code
+      }])),
+      flows: { allocation: { label: "DRA device allocation", steps: [
+        { text: "GPU driver discovers worker devices", mode: "arrow", from: "gpuDriver", to: "gpuSlice", color: "#58a6ff", num: 1 },
+        { text: "DRANET discovers worker interfaces", mode: "arrow", from: "netDriver", to: "netSlice", color: "#f0883e", num: 2 },
+        { text: "GPU class selects the discovered GPU", mode: "arrow", from: "gpuClass", to: "gpuSlice", color: "#58a6ff", num: 3 },
+        { text: "Network class selects the interface", mode: "arrow", from: "netClass", to: "netSlice", color: "#f0883e", num: 4 },
+        { text: "GPU template requests the GPU class", mode: "arrow", from: "gpuTemplate", to: "gpuClass", color: "#58a6ff", num: 5, waypoints: [{ x: 350, y: 180 }, { x: 350, y: 455 }] },
+        { text: "Network template requests the network class", mode: "arrow", from: "netTemplate", to: "netClass", color: "#f0883e", num: 6, waypoints: [{ x: 880, y: 180 }, { x: 880, y: 455 }] },
+        { text: "Pod creates its GPU claim", mode: "arrow", from: "gpuTemplate", to: "gpuClaim", color: "#58a6ff", num: 7 },
+        { text: "Pod creates its network claim", mode: "arrow", from: "netTemplate", to: "netClaim", color: "#f0883e", num: 8 },
+        { text: "GPU claim matches GPU inventory", mode: "arrow", from: "gpuClaim", to: "gpuSlice", color: "#58a6ff", num: 9, fromLeft: true, toRight: true },
+        { text: "Network claim matches network inventory", mode: "arrow", from: "netClaim", to: "netSlice", color: "#f0883e", num: 10, fromRight: true, toLeft: true },
+        { text: "Pod consumes its GPU claim", mode: "arrow", from: "gpuClaim", to: "pod", color: "#58a6ff", num: 11 },
+        { text: "Pod consumes its network claim", mode: "arrow", from: "netClaim", to: "pod", color: "#f0883e", num: 12 },
+        { text: "Kubelet prepares both devices", mode: "arrow", from: "pod", to: "connect", color: "#8b949e", num: 13 },
+        { text: "GPU becomes visible in the Pod", mode: "arrow", from: "connect", to: "gpu", color: "#58a6ff", num: 14 },
+        { text: "DRANET configures dranet0", mode: "arrow", from: "connect", to: "network", color: "#f0883e", num: 15 }
+      ] } },
+      flowOrder: ["allocation"], defaultFlow: "allocation",
+      legend: [{ label: "GPU allocation", color: "#58a6ff" }, { label: "Network allocation", color: "#f0883e" }]
+    };
+
+    const viz = new FlowStory(document.querySelector("#fs-canvas"), {
+      stepsContainer: document.querySelector("#fs-steps-container"),
+      overlay: document.querySelector("#fs-overlay"), overlayCard: document.querySelector("#fs-overlay-card"),
+      overlayTitle: document.querySelector("#fs-overlay-title"), overlayDesc: document.querySelector("#fs-overlay-desc"),
+      overlayDetails: document.querySelector("#fs-overlay-details"), overlayAccent: document.querySelector("#fs-overlay-accent"),
+      overlayClose: document.querySelector("#fs-overlay-close"), overlayResume: document.querySelector("#fs-overlay-resume"),
+      highlightBox: document.querySelector("#fs-highlight-box"), brand: document.querySelector("#fs-brand"), title: document.querySelector("#fs-title"),
+      legend: document.querySelector("#fs-legend"), flowSelect: document.querySelector("#fs-flow-select"), playBtn: document.querySelector("#fs-play"),
+      loopBtn: document.querySelector("#fs-loop"), resetBtn: document.querySelector("#fs-reset"), themeBtn: document.querySelector("#fs-theme")
+    });
+    await viz.load(diagram);
+    viz.state.loopMode = true;
+    document.querySelector("#fs-loop").textContent = "↻ Loop ON";
+    document.querySelector("#fs-speed").onchange = event => viz.setSpeed(Number(event.target.value));
+    viz.setSpeed(2);
+    viz.play();
+
+    const escape = value => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const highlightYaml = source => source.split("\n").map(line => {
+      if (line.trim().startsWith("#")) return `<span class="yaml-comment">${escape(line)}</span>`;
+      const match = line.match(/^(\s*)([^:#]+:)(.*)$/);
+      return match ? `${escape(match[1])}<span class="yaml-key">${escape(match[2])}</span><span class="yaml-value">${escape(match[3])}</span>` : escape(line);
+    }).join("\n");
+    const show = viz._overlay.show.bind(viz._overlay);
+    viz._overlay.show = (key, node, tooltip) => {
+      show(key, node, tooltip);
+      document.querySelector("#fs-overlay-details").innerHTML = `<pre>${highlightYaml(tooltip.yaml || yaml[key] || "No YAML for this node.")}</pre>`;
+    };
+    const sidebarToggle = document.querySelector("#fs-panel-toggle");
+    sidebarToggle.onclick = () => {
+      const collapsed = document.body.classList.toggle("sidebar-collapsed");
+      sidebarToggle.innerHTML = collapsed ? "‹" : "›";
+      sidebarToggle.setAttribute("aria-label", collapsed ? "Show sidebar" : "Hide sidebar");
+      sidebarToggle.setAttribute("title", collapsed ? "Show sidebar" : "Hide sidebar");
+      sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+      viz._engine.panelWidth = collapsed ? 0 : 380;
+      viz._engine.resize();
+    };
+  </script>
+</body>
+</html>
