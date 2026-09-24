@@ -3,23 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ensaio da demo DRA</title>
+  <title>Gravação da demo DRA</title>
   <link rel="stylesheet" href="assets/asciinema-player.css">
   <style>
     :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
-    body { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+    body { max-width: 960px; margin: 0 auto; padding: 3rem 1.25rem; }
     a { color: #0969da; }
     @media (prefers-color-scheme: dark) { a { color: #58a6ff; } }
   </style>
 </head>
 <body>
-  <p><a href="index.html">← Voltar aos diagramas</a></p>
-  <h1>Ensaio da demo DRA</h1>
-  <p>Gravação do roteiro de inspeção da demo de DRA e DRANET.</p>
+  <p><a href="index.html">← Voltar ao índice</a></p>
+  <h1>Gravação da demo DRA</h1>
+  <p>Roteiro de inspeção da demo de DRA e DRANET.</p>
+  <p><a href="dra-demo.cast" download>Baixar gravação (.cast)</a></p>
   <div id="demo"></div>
   <script src="assets/asciinema-player.min.js"></script>
   <script>
-    AsciinemaPlayer.create('dra-demo.cast', document.getElementById('demo'));
+    AsciinemaPlayer.create('dra-demo.cast', document.getElementById('demo'), {
+      fit: 'width',
+      terminalFontSize: 'small'
+    });
   </script>
 </body>
 </html>
