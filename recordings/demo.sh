@@ -6,7 +6,16 @@ k=(kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo)
 gateway=http://fast-inference-gateway-istio.ai-networking-demo.svc.cluster.local/v1/chat/completions
 
 section() {
-  printf '\033[2J\033[H\033[1;36m%s\033[0m\n\n' "$1"
+  printf '\n\033[1;36m%s\033[0m\n\n' "$1"
+}
+
+highlight_models() {
+  python3 -u -c '
+import re, sys
+pattern = re.compile(r"(?<![\w-])(?:fast|quality)(?:-(?:route|router|simulator)(?:-[a-z0-9]+)*)?(?![\w-])")
+for line in sys.stdin:
+    sys.stdout.write(pattern.sub(lambda m: "\033[1;31m" + m[0] + "\033[0m", line))
+'
 }
 
 pause() {
@@ -35,7 +44,7 @@ request() {
     -H 'Content-Type: application/json' -H "X-Demo-Pool: $pool" \
     -d "$payload")
   section "Resposta do pool $pool | JSON formatado para leitura"
-  printf '%s\n' "$response" | tr -d '\r' | awk '/^HTTP\// || /^x-inference-pod:/ || /^TTFT:/'
+  printf '%s\n' "$response" | tr -d '\r' | awk '/^HTTP\// || /^x-inference-pod:/ || /^TTFT:/' | highlight_models
   if [ "$pool" = invalid ]; then
     printf '%s\n' "$response" | grep -q '^HTTP/1.1 404'
     if printf '%s\n' "$response" | grep -qi '^x-inference-pod:'; then return 1; fi
@@ -47,34 +56,7 @@ import json, sys
 body = next(line for line in sys.stdin if line.startswith("{"))
 data = json.loads(body)
 print(json.dumps(data, ensure_ascii=False, indent=2))
-'
-    pause
-    section "Como ler a resposta de $pool"
-    printf '%s\n' "$response" | python3 -c '
-import json, sys
-lines = sys.stdin.read().splitlines()
-data = json.loads(next(line for line in lines if line.startswith("{")))
-pod = next(line.split(":", 1)[1].strip() for line in lines if line.lower().startswith("x-inference-pod:"))
-ttft = next(line.split(":", 1)[1].strip() for line in lines if line.startswith("TTFT:"))
-print("HTTP 200: o servidor respondeu com sucesso.")
-print(f"x-inference-pod: {pod}")
-print("  Este é o pod que atendeu a chamada.")
-print(f"TTFT: {ttft}")
-print("  Tempo até o primeiro byte, incluindo rede e gateway.")
-print("  Aqui usamos esse valor como aproximação do tempo até o primeiro token.")
-print("\nmodel:", data["model"])
-print("  Modelo informado na resposta. O header X-Demo-Pool escolheu o pool.")
-print("choices[0].message.content:", data["choices"][0]["message"]["content"])
-print("  O simulador devolveu o texto enviado; não houve geração por um modelo real.")
-print("choices[0].finish_reason:", data["choices"][0]["finish_reason"])
-print("  Indica como a resposta terminou.")
-usage = data["usage"]
-print("\nusage: contagem de tokens informada pelo simulador")
-print("  prompt_tokens:", usage["prompt_tokens"], "(entrada)")
-print("  completion_tokens:", usage["completion_tokens"], "(saída)")
-print("  total_tokens:", usage["total_tokens"], "(total)")
-print("  Esses números não representam consumo ou cobrança da OpenAI ou Claude.")
-'
+' | highlight_models
   fi
   printf '\n'
 }
@@ -108,13 +90,28 @@ printf '%s\n' \
 pause
 
 section '2. Os servidores de inferência'
+printf '%s\n' \
+  'Modelo / header -> HTTPRoute -> InferencePool -> EPP -> pods (label app)' \
+  'fast -> fast-route -> fast-router -> fast-router-epp -> fast-simulator (3 pods)' \
+  'quality -> quality-route -> quality-router -> quality-router-epp -> quality-simulator (1 pod)' \
+  '' 'Gateway compartilhado: fast-inference-gateway (Istio).' '' | highlight_models
 printf '%s\n' 'O pool fast tem três réplicas; o quality tem uma.' \
   'Cada InferencePool agrupa os pods que podem atender aquele modelo.' \
   '' 'O header X-Demo-Pool escolhe o pool. Dentro dele, o roteador escolhe o pod.' \
   'Vamos conferir quais servidores estão disponíveis.'
 pause
-printf '$ kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo get pods\n\n'
-"${k[@]}" get pods -l 'app in (fast-simulator,quality-simulator)'
+printf "$ kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo get pods -l 'app in (fast-simulator,quality-simulator)' -o yaml | python3 recordings/demo-yaml.py\n\n"
+"${k[@]}" get pods -l 'app in (fast-simulator,quality-simulator)' -o yaml | python3 recordings/demo-yaml.py | highlight_models
+pause
+
+section '2. InferencePools'
+printf '$ kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo get inferencepools -o yaml | python3 recordings/demo-yaml.py\n\n'
+"${k[@]}" get inferencepools -o yaml | python3 recordings/demo-yaml.py | highlight_models
+pause
+
+section '2. HTTPRoutes'
+printf '$ kubectl --context kind-kcd-ai-networking-demo -n ai-networking-demo get httproutes -o yaml | python3 recordings/demo-yaml.py\n\n'
+"${k[@]}" get httproutes -o yaml | python3 recordings/demo-yaml.py | highlight_models
 pause
 
 section '3. Uma chamada ao modelo rápido'
@@ -160,7 +157,7 @@ pods=$("${k[@]}" exec deployment/fast-client -- sh -c "$burst" | tr -d '\r' | aw
 test "$(printf '%s\n' "$pods" | grep -c '^fast-simulator-')" -eq 12
 test "$(printf '%s\n' "$pods" | sort -u | wc -l)" -gt 1
 printf 'Chamadas por pod (distribuicao observada):\n'
-printf '%s\n' "$pods" | sort | uniq -c
+printf '%s\n' "$pods" | sort | uniq -c | highlight_models
 pause
 
 section '5. Uma chamada ao modelo de qualidade'
