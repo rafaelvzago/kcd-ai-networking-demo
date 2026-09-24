@@ -41,6 +41,7 @@ rehearse-offline:
 	bash ./scripts/validate-model-routing.sh
 
 check-dra-prereqs:
+	@command -v yq >/dev/null 2>&1 || { echo 'Pré-requisito ausente: instale yq para compactar os YAMLs da demo DRA.'; exit 1; }
 	@command -v kind >/dev/null 2>&1 || { echo 'Pré-requis ausente: instale o Kind v0.33.x antes de executar a demo DRA.'; exit 1; }
 	@version="$$(kind version 2>/dev/null | sed -n 's/^kind v\([0-9][^ ]*\).*/\1/p')"; \
 	case "$$version" in \

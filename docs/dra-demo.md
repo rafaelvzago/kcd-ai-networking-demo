@@ -85,7 +85,9 @@ O roteiro somente consulta o cluster e executa comandos de leitura dentro dos
 dois Pods. Ele mostra, em etapas com títulos em português e pausas curtas, o
 YAML de `DeviceClass`, `ResourceClaimTemplate`, `ResourceClaim` (incluindo
 `status.allocation` e `status.networkData`) e `ResourceSlice`, além dos Pods,
-`GPU_DEVICE_*` e `ip addr`. Ele não cria, aplica ou remove recursos:
+`GPU_DEVICE_*` e `ip addr`. Os YAMLs são compactados com `yq` para remover
+metadados e status que não explicam o fluxo. Ele não cria, aplica ou remove
+recursos:
 
 ```bash
 bash scripts/rehearse-dra-demo.sh
