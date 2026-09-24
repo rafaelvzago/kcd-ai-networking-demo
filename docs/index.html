@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KCD Brasil 2026 — diagramas</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
+    body { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+    a { color: #0969da; }
+    @media (prefers-color-scheme: dark) { a { color: #58a6ff; } }
+    .diagrams { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    article { border: 1px solid #8886; border-radius: .6rem; padding: 1rem; }
+    img { display: block; width: 100%; height: auto; border-radius: .4rem; }
+  </style>
+</head>
+<body>
+  <h1>Diagramas da demo</h1>
+  <p>Fluxos da demo de networking para IA do KCD Brasil 2026.</p>
+
+  <div class="diagrams">
+    <article>
+      <h2><a href="diagrams/flow-dra.html">DRA + DRANET</a></h2>
+      <p>Alocação de GPU mock e interface de rede.</p>
+    </article>
+    <article>
+      <h2><a href="diagrams/flow-egress.html">Gateway API egress</a></h2>
+      <p>Fluxo de saída pelo Gateway API.</p>
+    </article>
+    <article>
+      <h2>Modelo rápido</h2>
+      <a href="diagrams/flow-fast_happy_path.gif"><img src="diagrams/flow-fast_happy_path.gif" alt="Fluxo do modelo rápido"></a>
+    </article>
+    <article>
+      <h2>Modelo de qualidade</h2>
+      <a href="diagrams/flow-quality_happy_path.gif"><img src="diagrams/flow-quality_happy_path.gif" alt="Fluxo do modelo de qualidade"></a>
+    </article>
+    <article>
+      <h2>Pool inválido</h2>
+      <a href="diagrams/flow-invalid_pool.gif"><img src="diagrams/flow-invalid_pool.gif" alt="Fluxo de pool inválido"></a>
+    </article>
+  </div>
+
+  <p><a href="diagrams/flowstory-workflow-prompt.md">Prompt para gerar os diagramas</a></p>
+  <p><a href="dra-demo.html">▶ Reproduzir o ensaio da demo DRA</a></p>
+</body>
+</html>

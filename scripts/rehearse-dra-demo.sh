@@ -4,6 +4,11 @@ set -euo pipefail
 context=kind-dra-demo
 namespace=dra-demo
 
+command -v yq >/dev/null 2>&1 || {
+  printf '%s\n' 'Pré-requisito ausente: instale yq para compactar os YAMLs da gravação.' >&2
+  exit 1
+}
+
 title() {
   printf '\n\n=== %s ===\n' "$1"
   sleep 0.6
@@ -37,6 +42,14 @@ run() {
   sleep 0.6
 }
 
+run_yaml() {
+  local filter=$1
+  shift
+  printf '\n$ %s -o yaml | yq\n' "$*"
+  "$@" | yq -P "$filter" | colorize
+  sleep 0.6
+}
+
 title '1. Visão geral do cluster'
 say 'Começamos pelos nós para confirmar onde os drivers e os Pods podem ser executados.'
 run kubectl --context "$context" get nodes -o wide
@@ -48,19 +61,34 @@ run kubectl --context "$context" --namespace kube-system get daemonset,pods -l a
 
 title '3. DeviceClass: quais devices podem ser selecionados'
 say 'Estas classes ligam os claims aos drivers gpu.example.com e dra.net.'
-run kubectl --context "$context" get deviceclass gpu.example.com dranet.net -o yaml
+run_yaml '{"apiVersion": .apiVersion, "kind": .kind, "items": [.items[] | {"apiVersion": .apiVersion, "kind": .kind, "metadata": {"name": .metadata.name}, "spec": {"selectors": .spec.selectors}}]}' kubectl --context "$context" get deviceclass gpu.example.com dranet.net
 
 title '4. ResourceSlices: inventário publicado pelos nós'
 say 'Cada slice mostra os devices disponíveis e em qual nó o scheduler pode encontrá-los.'
-run kubectl --context "$context" get resourceslices -o yaml
+run_yaml '{"apiVersion": .apiVersion, "kind": .kind, "items": [.items[] | {"apiVersion": .apiVersion, "kind": .kind, "spec": {"nodeName": .spec.nodeName, "driver": .spec.driver, "devices": [.spec.devices[] | {"name": .name, "capacity": .capacity} | with_entries(select(.value != null))]}}]}' kubectl --context "$context" get resourceslices
 
 title '5. ResourceClaimTemplates: o pedido declarado pelo workload'
 say 'Os templates pedem uma GPU e uma interface específica, incluindo nome e endereço da interface.'
-run kubectl --context "$context" --namespace "$namespace" get resourceclaimtemplates -o yaml
+run_yaml '{
+  "apiVersion": .apiVersion,
+  "kind": .kind,
+  "items": [.items[] | {
+    "apiVersion": .apiVersion,
+    "kind": .kind,
+    "spec": {
+      "spec": {
+        "devices": ({
+          "config": (.spec.spec.devices.config // [] | map({"opaque": {"driver": .opaque.driver, "parameters": {"interface": .opaque.parameters.interface}}})),
+          "requests": (.spec.spec.devices.requests | map({"exactly": {"deviceClassName": .exactly.deviceClassName, "selectors": .exactly.selectors}, "name": .name}))
+        } | with_entries(select(.value != null and ((.value | type) != "!!seq" or (.value | length) > 0))))
+      }
+    }
+  }]
+}' kubectl --context "$context" --namespace "$namespace" get resourceclaimtemplates
 
 title '6. ResourceClaims: resultado da alocação'
 say 'Procure status.allocation, que registra o device escolhido, e status.networkData, com a configuração entregue pelo driver.'
-run kubectl --context "$context" --namespace "$namespace" get resourceclaims -o yaml
+run_yaml '{"apiVersion": .apiVersion, "kind": .kind, "items": [.items[] | {"apiVersion": .apiVersion, "kind": .kind, "status": ({"allocation": {"devices": (.status.allocation.devices.results // [] | map({"device": .device, "driver": .driver, "pool": .pool, "request": .request}))}, "devices": (.status.devices // [] | map({"device": .device, "driver": .driver, "networkData": {"interfaceName": .networkData.interfaceName, "ips": .networkData.ips}}))} | with_entries(select(.value != null and ((.value | type) != "!!seq" or (.value | length) > 0))))}]}' kubectl --context "$context" --namespace "$namespace" get resourceclaims
 
 title '7. Pods consumidores'
 say 'Agora conferimos os dois Pods, seus nós e o vínculo com os ResourceClaims.'
