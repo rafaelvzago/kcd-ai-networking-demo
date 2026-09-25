@@ -1,0 +1,127 @@
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: gpu-mock-a
+  namespace: dra-demo
+spec:
+  spec:
+    devices:
+      requests:
+      - name: gpu
+        exactly:
+          deviceClassName: gpu.example.com
+          selectors:
+          - cel:
+              expression: "device.capacity['gpu.example.com'].memory.compareTo(quantity('10Gi')) >= 0"
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: gpu-mock-b
+  namespace: dra-demo
+spec:
+  spec:
+    devices:
+      requests:
+      - name: gpu
+        exactly:
+          deviceClassName: gpu.example.com
+          selectors:
+          - cel:
+              expression: "device.capacity['gpu.example.com'].memory.compareTo(quantity('10Gi')) >= 0"
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: dranet-dummy-a
+  namespace: dra-demo
+spec:
+  spec:
+    devices:
+      requests:
+      - name: network
+        exactly:
+          deviceClassName: dranet.net
+          selectors:
+          - cel:
+              expression: device.attributes['dra.net'].ifName == 'dranet-dummy0'
+      config:
+      - opaque:
+          driver: dra.net
+          parameters:
+            interface:
+              name: dranet0
+              addresses:
+              - 169.254.10.1/30
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: dranet-dummy-b
+  namespace: dra-demo
+spec:
+  spec:
+    devices:
+      requests:
+      - name: network
+        exactly:
+          deviceClassName: dranet.net
+          selectors:
+          - cel:
+              expression: device.attributes['dra.net'].ifName == 'dranet-dummy1'
+      config:
+      - opaque:
+          driver: dra.net
+          parameters:
+            interface:
+              name: dranet0
+              addresses:
+              - 169.254.10.2/30
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dra-consumer-a
+  namespace: dra-demo
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: dra-demo-worker
+  restartPolicy: Never
+  containers:
+  - name: consumer
+    image: busybox:1.36
+    command: ["sh", "-c"]
+    args: ["env; ip addr; trap 'exit 0' TERM; sleep 9999 & wait"]
+    resources:
+      claims:
+      - name: gpu
+      - name: network
+  resourceClaims:
+  - name: gpu
+    resourceClaimTemplateName: gpu-mock-a
+  - name: network
+    resourceClaimTemplateName: dranet-dummy-a
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dra-consumer-b
+  namespace: dra-demo
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: dra-demo-worker2
+  restartPolicy: Never
+  containers:
+  - name: consumer
+    image: busybox:1.36
+    command: ["sh", "-c"]
+    args: ["env; ip addr; trap 'exit 0' TERM; sleep 9999 & wait"]
+    resources:
+      claims:
+      - name: gpu
+      - name: network
+  resourceClaims:
+  - name: gpu
+    resourceClaimTemplateName: gpu-mock-b
+  - name: network
+    resourceClaimTemplateName: dranet-dummy-b

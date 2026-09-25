@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gateway API Egress Gateway — FlowStory</title>
+  <link rel="stylesheet" href="https://noyitz.github.io/flowstory/templates/style.css">
+  <style>
+    .fs-panel { transition: transform .2s ease, background .3s, border-color .3s; }
+    #fs-highlight-box { z-index:250 !important; }
+    .fs-flow-bar .fs-speed { flex:none; width:64px; }
+    :root { --fs-yaml-key:#79c0ff; --fs-yaml-string:#a5d6ff; --fs-yaml-kind:#d2a8ff; --fs-yaml-literal:#f0883e; --fs-yaml-punctuation:#8b949e; }
+    body.light { --fs-yaml-key:#0550ae; --fs-yaml-string:#0a3069; --fs-yaml-kind:#6639ba; --fs-yaml-literal:#953800; --fs-yaml-punctuation:#57606a; }
+    #fs-overlay-card { width:min(900px, calc(100vw - 400px)); max-width:none !important; max-height:calc(100vh - 20px); overflow:auto; background:var(--fs-bg-surface) !important; border-color:var(--fs-border) !important; box-shadow:0 12px 40px rgba(0,0,0,.35) !important; }
+    body.sidebar-collapsed #fs-overlay-card { width:min(900px, calc(100vw - 40px)); }
+    .fs-yaml { margin:14px 0 0; padding:18px; max-height:60vh; overflow:auto; border:1px solid var(--fs-border); border-radius:6px; background:var(--fs-bg); color:var(--fs-text); font:14px/1.55 SFMono-Regular,Consolas,monospace; white-space:pre; }
+    #fs-overlay-desc, #fs-overlay-close { color:var(--fs-text-dim) !important; }
+    #fs-overlay-details > div span:first-child { color:var(--fs-text-dim) !important; }
+    #fs-overlay-details > div span:nth-child(2) { color:var(--fs-text) !important; }
+    .fs-yaml-key { color:var(--fs-yaml-key); font-weight:600; }
+    .fs-yaml-string { color:var(--fs-yaml-string); }
+    .fs-yaml-kind { color:var(--fs-yaml-kind); font-weight:600; }
+    .fs-yaml-literal { color:var(--fs-yaml-literal); font-weight:600; }
+    .fs-yaml-punctuation { color:var(--fs-yaml-punctuation); }
+    #fs-panel-toggle { position:fixed; top:16px; right:396px; z-index:201; width:36px; height:36px; border:1px solid var(--fs-border); border-radius:8px; background:var(--fs-bg-surface); color:var(--fs-text); cursor:pointer; font-size:18px; }
+    .fs-theme-toggle { right:438px; }
+    body.sidebar-collapsed .fs-panel { transform:translateX(100%); }
+    body.sidebar-collapsed #fs-panel-toggle { right:60px; }
+    body.sidebar-collapsed .fs-theme-toggle { right:16px; }
+    body.sidebar-collapsed .fs-title { right:0; }
+    body.sidebar-collapsed #fs-overlay { right:0 !important; }
+  </style>
+</head>
+<body>
+  <button class="fs-theme-toggle" id="fs-theme" aria-label="Toggle theme">&#9790;</button>
+  <button id="fs-panel-toggle" aria-label="Hide sidebar" aria-expanded="true" title="Hide sidebar">&#8250;</button>
+  <div class="fs-brand" id="fs-brand"></div>
+  <div class="fs-title" id="fs-title"></div>
+
+  <div class="fs-panel">
+    <div class="fs-flow-bar">
+      <select id="fs-flow-select" aria-label="Select flow"></select>
+      <button class="fs-start" id="fs-play">&#9654; Start</button>
+      <select class="fs-speed" id="fs-speed" aria-label="Playback speed">
+        <option value="1">1×</option>
+        <option value="2" selected>2×</option>
+        <option value="4">4×</option>
+      </select>
+      <button id="fs-loop" style="border-color:#3fb950;color:#3fb950">&#8635; Loop ON</button>
+      <button class="fs-reset" id="fs-reset">Reset</button>
+    </div>
+    <div class="fs-steps" id="fs-steps">
+      <div class="fs-steps-title">Flow Steps <span style="font-weight:400;font-size:11px;color:var(--fs-text-dim)">· click to jump</span></div>
+      <div id="fs-steps-container"></div>
+    </div>
+    <div class="fs-inspector" id="fs-inspector">
+      <div class="fs-inspector-title" id="fs-inspector-title" style="color:var(--fs-accent)">Request</div>
+      <div id="fs-inspector-content"></div>
+    </div>
+  </div>
+
+  <div id="fs-highlight-box" style="display:none;position:fixed;z-index:350;border-radius:10px;pointer-events:none"></div>
+  <div id="fs-overlay" style="display:none;position:fixed;top:0;left:0;right:380px;bottom:0;z-index:300;background:rgba(0,0,0,.6)">
+    <div id="fs-overlay-card" style="position:absolute;background:#161b22ee;border:1px solid #30363d;border-radius:14px;max-width:420px;padding:22px 26px;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+      <button id="fs-overlay-close" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#8b949e;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px">✕</button>
+      <div id="fs-overlay-accent" style="width:4px;height:24px;border-radius:2px;position:absolute;left:0;top:22px"></div>
+      <h2 id="fs-overlay-title" style="margin:0 0 6px;font-size:18px;color:#c9d1d9;font-family:system-ui"></h2>
+      <p id="fs-overlay-desc" style="margin:0 0 14px;font-size:13px;color:#8b949e;line-height:1.5;font-family:system-ui"></p>
+      <div id="fs-overlay-details" style="font-size:12px;font-family:SFMono-Regular,Consolas,monospace"></div>
+      <button id="fs-overlay-resume" style="margin-top:14px;padding:7px 20px;border:1px solid #3fb950;border-radius:8px;background:transparent;color:#3fb950;font-size:13px;cursor:pointer;font-family:system-ui">&#9654; Resume Flow</button>
+    </div>
+  </div>
+
+  <div class="fs-legend" id="fs-legend"></div>
+  <canvas id="fs-canvas"></canvas>
+
+  <script type="module">
+    import { FlowStory } from 'https://noyitz.github.io/flowstory/src/index.js';
+
+    const diagram = {
+      meta: {
+        title: 'Gateway API Egress: Pod → api.openai.com',
+        author: 'Conceptual flow based on GEP-4894 and GEP-5093'
+      },
+      canvas: { width: 1250, height: 900 },
+      nodes: {
+        pod: {
+          x: 55, y: 410, w: 130, h: 70,
+          label: 'Application Pod', sublabel: 'namespace: ai-apps', color: '#58a6ff', inner: true
+        },
+        cluster: {
+          x: 25, y: 175, w: 860, h: 570, type: 'boundary', label: 'Kubernetes cluster', color: '#8b949e', labelAlign: 'left'
+        },
+        gateway: {
+          x: 220, y: 410, w: 180, h: 80,
+          label: 'Gateway: ai-egress', sublabel: 'address routability: Cluster', color: '#79c0ff', inner: true
+        },
+        route: {
+          x: 445, y: 290, w: 190, h: 94,
+          label: 'HTTPRoute', sublabel: 'backendRef: openai-api', color: '#58a6ff', inner: true
+        },
+        headers: {
+          x: 445, y: 535, w: 190, h: 94, type: 'plugin',
+          label: 'RequestHeaderModifier', sublabel: 'adds egress metadata', color: '#f0883e', inner: true
+        },
+        backend: {
+          x: 680, y: 410, w: 190, h: 80,
+          label: 'Backend: openai-api', sublabel: 'ExternalHostname · :443', color: '#79c0ff', inner: true
+        },
+        openai: {
+          x: 970, y: 410, w: 190, h: 80,
+          label: 'api.openai.com', sublabel: 'external HTTPS endpoint', color: '#d2a8ff', stackCount: 2
+        }
+      },
+      tooltips: {
+        pod: {
+          title: 'Application Pod',
+          description: 'Illustrative workload manifest.',
+          yaml: `apiVersion: v1
+kind: Pod
+metadata:
+  name: application
+  namespace: ai-apps
+  labels:
+    app: application
+spec:
+  containers:
+    - name: app
+      image: example/application:latest`
+        },
+        gateway: {
+          title: 'Cluster-routable Gateway',
+          description: 'GEP-5093 proposes routability on each Gateway address. Cluster means the address is reachable in-cluster and uses the Service networking range.',
+          details: [['Gateway address', 'routability: Cluster'], ['Why', 'avoids an externally reachable egress relay']],
+          yaml: `apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ai-egress
+  namespace: ai-apps
+spec:
+  gatewayClassName: example
+  addresses:
+    - type: IPAddress
+      routability: Cluster
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP`
+        },
+        route: {
+          title: 'Attached HTTPRoute',
+          description: 'The Route attaches to the egress Gateway through parentRefs and directs matching traffic to a Backend resource.',
+          details: [['backendRef', 'Backend/openai-api'], ['filter', 'RequestHeaderModifier']],
+          yaml: `apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: openai-egress
+  namespace: ai-apps
+spec:
+  parentRefs:
+    - name: ai-egress
+  rules:
+    - filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            add:
+              - name: X-Egress-Gateway
+                value: ai-egress
+              - name: X-Workload-Namespace
+                value: ai-apps
+      backendRefs:
+        - name: openai-api
+          kind: Backend
+          group: gateway.networking.k8s.io
+          port: 443`
+        },
+        backend: {
+          title: 'ExternalHostname Backend',
+          description: 'GEP-4894 proposes Backend as a consumer-focused destination resource. ExternalHostname supplies an external FQDN without a synthetic ExternalName Service.',
+          details: [['type', 'ExternalHostname'], ['hostname', 'api.openai.com'], ['port', '443']],
+          yaml: `apiVersion: gateway.networking.k8s.io/v1alpha1
+kind: Backend
+metadata:
+  name: openai-api
+  namespace: ai-apps
+spec:
+  type: ExternalHostname
+  externalHostname:
+    hostname: api.openai.com
+  port: 443`
+        },
+        headers: {
+          title: 'Per-request header enrichment',
+          description: 'The HTTPRoute filter adds request metadata before the gateway forwards the request to the selected Backend.',
+          details: [['added', 'X-Egress-Gateway: ai-egress'], ['added', 'X-Workload-Namespace: ai-apps']]
+        },
+        openai: {
+          title: 'External HTTPS endpoint',
+          description: 'api.openai.com is external to Kubernetes, so it has no Kubernetes manifest. The Backend resource declares this destination.',
+          details: [['hostname', 'api.openai.com'], ['port', '443']]
+        }
+      },
+      inspector: {
+        initialState: {
+          phase: 'request',
+          headers: [
+            { id: 'h-request', value: 'POST /v1/chat/completions HTTP/1.1', style: 'keep' },
+            { id: 'h-host', value: 'Host: api.openai.com', style: 'keep' },
+            { id: 'h-auth', value: 'Authorization: Bearer …', style: 'keep' }
+          ],
+          body: [{ id: 'b-model', value: '{ "model": "gpt-4o" }', style: 'keep' }],
+          cycleState: []
+        },
+        mutations: {
+          egress: [
+            {
+              step: 3, label: 'HTTPRoute adds egress headers', phase: 'request',
+              actions: [
+                { action: 'add', target: 'headers', id: 'h-gateway', value: 'X-Egress-Gateway: ai-egress', style: 'add' },
+                { action: 'add', target: 'headers', id: 'h-namespace', value: 'X-Workload-Namespace: ai-apps', style: 'add' }
+              ]
+            },
+            {
+              step: 6, label: 'External response returns', phase: 'response',
+              replaceHeaders: [
+                { id: 'h-status', value: 'HTTP/1.1 200 OK', style: 'highlight' },
+                { id: 'h-content-type', value: 'Content-Type: application/json', style: 'keep' }
+              ],
+              replaceBody: [{ id: 'b-response', value: '{ "choices": [ … ] }', style: 'keep' }]
+            }
+          ]
+        }
+      },
+      flows: {
+        egress: {
+          label: 'Egress request and response',
+          steps: [
+            { text: 'The Pod sends an HTTPS request to the Gateway’s Cluster-routable address.', mode: 'arrow', from: 'pod', to: 'gateway', color: '#58a6ff', num: 1, fromRight: true, toLeft: true },
+            { text: 'The Gateway matches the request to its attached HTTPRoute.', mode: 'arrow', from: 'gateway', to: 'route', color: '#58a6ff', num: 2, fromRight: true, toLeft: true },
+            { text: 'The HTTPRoute applies RequestHeaderModifier to enrich the request.', mode: 'arrow', from: 'route', to: 'headers', color: '#f0883e', num: 3, fromBottom: true, toTop: true },
+            { text: 'The route’s backendRef resolves to the ExternalHostname Backend for api.openai.com.', mode: 'arrow', from: 'headers', to: 'backend', color: '#58a6ff', num: 4, fromRight: true, toLeft: true },
+            { text: 'The egress Gateway establishes the outbound TLS connection to api.openai.com:443.', mode: 'arrow', from: 'backend', to: 'openai', color: '#d2a8ff', num: 5, fromRight: true, toLeft: true },
+            { text: 'api.openai.com returns the HTTPS response to the egress Gateway.', mode: 'arrow', from: 'openai', to: 'backend', color: '#3fb950', num: 6, fromLeft: true, toRight: true, yOff: 18 },
+            { text: 'The Gateway relays the response through the established route.', mode: 'arrow', from: 'backend', to: 'gateway', color: '#3fb950', num: 7, fromLeft: true, toRight: true, yOff: 18, waypoints: [{ x: 655, y: 685 }, { x: 425, y: 685 }] },
+            { text: 'The response returns to the calling Pod.', mode: 'arrow', from: 'gateway', to: 'pod', color: '#3fb950', num: 8, fromLeft: true, toRight: true, yOff: 18 }
+          ]
+        }
+      },
+      flowOrder: ['egress'],
+      defaultFlow: 'egress',
+      legend: [
+        { label: 'Request path', color: '#58a6ff' },
+        { label: 'Header enrichment', color: '#f0883e' },
+        { label: 'External TLS call', color: '#d2a8ff' },
+        { label: 'Response path', color: '#3fb950' }
+      ]
+    };
+
+    const byId = (id) => document.getElementById(id);
+    const viz = new FlowStory(byId('fs-canvas'), {
+      stepsContainer: byId('fs-steps-container'), inspectorTitle: byId('fs-inspector-title'), inspectorContent: byId('fs-inspector-content'),
+      overlay: byId('fs-overlay'), overlayCard: byId('fs-overlay-card'), overlayTitle: byId('fs-overlay-title'), overlayDesc: byId('fs-overlay-desc'),
+      overlayDetails: byId('fs-overlay-details'), overlayAccent: byId('fs-overlay-accent'), overlayClose: byId('fs-overlay-close'),
+      overlayResume: byId('fs-overlay-resume'), highlightBox: byId('fs-highlight-box'), brand: byId('fs-brand'), title: byId('fs-title'),
+      legend: byId('fs-legend'), flowSelect: byId('fs-flow-select'), playBtn: byId('fs-play'),
+      loopBtn: byId('fs-loop'), resetBtn: byId('fs-reset'), themeBtn: byId('fs-theme')
+    });
+
+    window.__flowstory = viz;
+    const speed = byId('fs-speed');
+    viz.setSpeed(Number(speed.value));
+    speed.addEventListener('change', () => viz.setSpeed(Number(speed.value)));
+    const sidebarToggle = byId('fs-panel-toggle');
+    sidebarToggle.addEventListener('click', () => {
+      const collapsed = document.body.classList.toggle('sidebar-collapsed');
+      sidebarToggle.innerHTML = collapsed ? '&#8249;' : '&#8250;';
+      sidebarToggle.setAttribute('aria-label', collapsed ? 'Show sidebar' : 'Hide sidebar');
+      sidebarToggle.setAttribute('title', collapsed ? 'Show sidebar' : 'Hide sidebar');
+      sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+      viz._engine.panelWidth = collapsed ? 0 : 380;
+      viz._engine.resize();
+    });
+    try {
+      await viz.load(diagram);
+      const escapeYaml = (value) => value.replace(/[&<>]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[character]);
+      const highlightYaml = (source) => source.split('\n').map((line) => {
+        const match = line.match(/^(\s*(?:-\s+)?)([^:\s][^:]*):(.*)$/);
+        if (!match) return escapeYaml(line);
+        const [, indent, key, value] = match;
+        const valueClass = key === 'kind' ? 'fs-yaml-kind'
+          : key === 'apiVersion' || /^(\s*)(true|false|null|\d+)(\s*)$/.test(value) ? 'fs-yaml-literal'
+          : 'fs-yaml-string';
+        return `${escapeYaml(indent).replace('-', '<span class="fs-yaml-punctuation">-</span>')}<span class="fs-yaml-key">${escapeYaml(key)}</span><span class="fs-yaml-punctuation">:</span><span class="${valueClass}">${escapeYaml(value)}</span>`;
+      }).join('\n');
+      const showTooltip = viz._overlay.show.bind(viz._overlay);
+      viz._overlay.show = (key, node, tooltip, context) => {
+        showTooltip(key, node, tooltip, context);
+        if (!tooltip.yaml) return;
+        const yaml = document.createElement('pre');
+        yaml.className = 'fs-yaml';
+        yaml.innerHTML = highlightYaml(tooltip.yaml);
+        byId('fs-overlay-details').append(yaml);
+        const card = byId('fs-overlay-card');
+        const canvasRight = innerWidth - (document.body.classList.contains('sidebar-collapsed') ? 0 : 380) - 10;
+        card.style.left = `${Math.max(10, Math.min(Number.parseFloat(card.style.left), canvasRight - card.offsetWidth))}px`;
+        card.style.top = `${Math.max(10, Math.min(Number.parseFloat(card.style.top), innerHeight - card.offsetHeight - 10))}px`;
+      };
+      viz.state.loopMode = true;
+      viz.play();
+    } catch (error) {
+      console.error('FlowStory load error:', error);
+      document.body.innerHTML = `<pre style="padding:40px;color:#f85149">${error.message}</pre>`;
+    }
+  </script>
+</body>
+</html>
