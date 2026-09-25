@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gravação da demo de inferência</title>
+  <link rel="stylesheet" href="assets/asciinema-player.css">
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
+    body { max-width: 960px; margin: 0 auto; padding: 3rem 1.25rem; }
+    a { color: #0969da; }
+    @media (prefers-color-scheme: dark) { a { color: #58a6ff; } }
+  </style>
+</head>
+<body>
+  <p><a href="index.html">← Voltar ao índice</a></p>
+  <h1>Gravação da demo de inferência</h1>
+  <p>A gravação pausa em cada etapa. Clique em reproduzir ou pressione espaço para continuar.</p>
+  <p><a href="inference-demo.cast" download>Baixar gravação (.cast)</a></p>
+  <div id="demo"></div>
+  <script src="assets/asciinema-player.min.js"></script>
+  <script>
+    AsciinemaPlayer.create('inference-demo.cast', document.getElementById('demo'), {
+      fit: 'width',
+      cols: 120,
+      rows: 40,
+      pauseOnMarkers: true
+    });
+  </script>
+</body>
+</html>

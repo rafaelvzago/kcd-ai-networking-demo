@@ -2,6 +2,9 @@
 
 Demo local de inferência com Istio, Gateway API, GAIE, `InferencePool` e llm-d.
 
+Veja o [fluxo geral do InferencePool](https://kcd-sp-2026.kube.rip/diagrams/flow-inference-pool.html) e a
+[gravação da demo de inferência](https://kcd-sp-2026.kube.rip/inference-demo.html).
+
 ## Demo independente de DRA
 
 Para o passo a passo, limites, mapa de manifests e comandos de inspeção, veja
@@ -82,31 +85,30 @@ Fontes:
 
 ## Modelo rápido
 
-Modelo simulado com TTFT menor, atendido por três réplicas no pool `fast`, para evidenciar o balanceamento.
+Modelo simulado com TTFT menor, atendido por três réplicas no pool `fast-router`, para evidenciar o balanceamento.
 
-![Modelo rápido](docs/diagrams/flow-fast_happy_path.gif)
+[Diagrama interativo](https://kcd-sp-2026.kube.rip/diagrams/flow-fast.html) · [GIF](docs/diagrams/flow-fast_happy_path.gif)
 
 ## Modelo de qualidade
 
-Modelo simulado com TTFT maior, atendido pelo pool separado `quality`, para evidenciar a seleção de pools.
+Modelo simulado com TTFT maior, atendido pelo pool separado `quality-router`, para evidenciar a seleção de pools.
 
-![Modelo de qualidade](docs/diagrams/flow-quality_happy_path.gif)
+[Diagrama interativo](https://kcd-sp-2026.kube.rip/diagrams/flow-quality.html) · [GIF](docs/diagrams/flow-quality_happy_path.gif)
 
 ## Pool inválido
 
 Um valor de `X-Demo-Pool` diferente de `fast` ou `quality` não corresponde a nenhuma rota e não alcança um `InferencePool`.
 
-![Pool inválido](docs/diagrams/flow-invalid_pool.gif)
+[Diagrama interativo](https://kcd-sp-2026.kube.rip/diagrams/flow-invalid.html) · [GIF](docs/diagrams/flow-invalid_pool.gif)
 
 ## Gerar os diagramas
 
-Use o [FlowStory](https://github.com/noyitz/flowstory). Consulte o [guia rápido](https://github.com/noyitz/flowstory/blob/main/docs/quick-start-prompt.md) e a [referência do schema](https://github.com/noyitz/flowstory/blob/main/CLAUDE.md).
-
-1. Abra `docs/architecture/diagram.json` no FlowStory.
-2. Exporte um GIF para cada fluxo: `fast_happy_path`, `quality_happy_path` e `invalid_pool`.
-3. Salve-os em `docs/diagrams/` como `flow-fast_happy_path.gif`, `flow-quality_happy_path.gif` e `flow-invalid_pool.gif`.
-
-O JSON é a fonte do diagrama; não há arquivos D2 ou SVG para manter.
+O [JSON](docs/architecture/diagram.json) é a fonte dos diagramas interativos.
+Para atualizar os GIFs, capture os fluxos `fast_happy_path`,
+`quality_happy_path` e `invalid_pool` nas páginas HTML e salve-os em
+`docs/diagrams/` com os nomes atuais. Consulte a
+[referência do FlowStory](https://github.com/noyitz/flowstory/blob/main/CLAUDE.md)
+para editar o JSON.
 
 ## Pré-requisitos
 
@@ -142,7 +144,7 @@ Isso instala o Gateway Istio, três simuladores `fast` (TTFT de 100 ms), um `qua
 make validate-model-routing
 ```
 
-O cliente envia uma API OpenAI-compatível para `/v1/chat/completions`. `X-Demo-Pool: fast|quality` seleciona o `InferencePool`; a validação mostra os pods, `usage` e exige TTFT de `fast` menor que o de `quality`.
+O cliente envia uma API OpenAI-compatível para `/v1/chat/completions`. `X-Demo-Pool: fast|quality` seleciona a `HTTPRoute`, cujo `backendRef` aponta para o `InferencePool`; a validação mostra os pods, `usage` e exige TTFT de `fast` menor que o de `quality`.
 
 ## Ensaio offline
 
