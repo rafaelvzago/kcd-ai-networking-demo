@@ -13,6 +13,7 @@ request() {
 
 fast=$(request fast)
 quality=$(request quality)
+trap 'printf "fast response:\n%s\nquality response:\n%s\n" "$fast" "$quality" >&2' ERR
 
 printf '%s\n' "$fast" | grep -qi '^x-inference-pod: fast-simulator-'
 printf '%s\n' "$quality" | grep -qi '^x-inference-pod: quality-simulator-'
