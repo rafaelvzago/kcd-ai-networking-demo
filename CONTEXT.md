@@ -44,15 +44,15 @@ O contrato local de `POST /v1/chat/completions` usado pela demo; ele não implic
 _Evitar_: API real da OpenAI
 
 **Inference Payload Processor (IPP)**:
-O componente do llm-d que lê o campo `model` da requisição e seleciona o `InferencePool` correspondente.
-_Evitar_: transformação proprietária de JSON
+Serviço opcional do llm-d que inspeciona ou altera o payload de inferência e pode fornecer sinais para roteamento. Ele não é instalado nesta demo: o Gateway compara `X-Demo-Pool` com as regras das `HTTPRoutes`, que apontam para os `InferencePools`; o Endpoint Picker (EPP) escolhe um pod dentro do pool.
+_Evitar_: atribuir ao IPP a seleção de rota feita pelo Gateway nesta demo
 
 **Modelo rápido**:
-O modelo simulado com TTFT menor, servido por três réplicas e selecionado pelo pool `fast` para tornar visível o balanceamento.
+O modelo simulado com TTFT menor, servido por três réplicas no `InferencePool` `fast-router`. A rota `fast-route` aponta para esse pool e corresponde a `X-Demo-Pool: fast`.
 _Evitar_: backend-1, modelo padrão
 
 **Modelo de qualidade**:
-O modelo simulado com TTFT maior, servido por um pool separado para tornar visível o roteamento por modelo.
+O modelo simulado com TTFT maior, servido por um pod no `InferencePool` `quality-router`. A rota `quality-route` aponta para esse pool e corresponde a `X-Demo-Pool: quality`.
 _Evitar_: backend-3
 
 **Explicação técnica**:
